@@ -102,7 +102,7 @@
   .chip.off { opacity: 0.35; }
   .chip:hover { border-color:#3a4150; }
 
-  #showAllBtn, #resetBtn {
+  #showAllBtn {
     background: var(--text);
     color: #0a0c10;
     border: none;
@@ -113,14 +113,7 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  #resetBtn {
-    background: transparent;
-    color: var(--text-dim);
-    border: 1px solid var(--panel-border);
-    font-weight: 600;
-  }
   #showAllBtn:hover { opacity:0.85; }
-  #resetBtn:hover { color: var(--text); border-color:#3a4150; }
 
   #mapModeBtn {
     position: absolute;
@@ -149,7 +142,8 @@
     display:flex; align-items:center; gap:8px;
   }
   #statusDot { width:8px; height:8px; border-radius:50%; background:#555; flex:none; transition: background .2s ease; }
-  #statusDot.ok { background:#00e2b6; box-shadow: 0 0 6px #00e2b6; }
+  #statusDot.ok { background:#ff4d4d; box-shadow: 0 0 6px #ff4d4d; animation: liveBlink 1.4s ease-in-out infinite; }
+  @keyframes liveBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
   #statusDot.bad { background:#ff4d4d; box-shadow: 0 0 6px #ff4d4d; }
   #statusDot.pending { background:#e8b93f; }
 
@@ -226,7 +220,6 @@
       align-items: flex-start;
       gap: 8px;
     }
-    #secondaryControls #resetBtn,
     #secondaryControls #modelFilterBtn {
       background: rgba(18,21,27,0.92);
       backdrop-filter: blur(10px);
@@ -319,9 +312,9 @@
 
   <div class="types">
     <label class="chip" id="chipTroll"><input type="checkbox" checked><span class="dot" style="background:var(--troll)"></span>Trollid</label>
+    <label class="chip" id="chipTram"><input type="checkbox" checked><span class="dot" style="background:var(--tram)"></span>Trammid</label>
     <label class="chip" id="chipBus"><input type="checkbox" checked><span class="dot" style="background:var(--bus)"></span>Bussid</label>
     <label class="chip" id="chipNight"><input type="checkbox" checked><span class="dot" style="background:var(--night)"></span>Ööbussid</label>
-    <label class="chip" id="chipTram"><input type="checkbox" checked><span class="dot" style="background:var(--tram)"></span>Trammid</label>
   </div>
 
   <div id="secondaryControls">
@@ -330,7 +323,6 @@
       <div id="modelDropdown"></div>
     </div>
 
-    <button id="resetBtn">Puhasta otsing</button>
     <button id="showAllBtn">Kuva kõik sõidukid</button>
   </div>
 
@@ -347,8 +339,6 @@
 (function(){
 
   // ---------- Config ----------
-  // ---- Kui deployid oma Cloudflare Worker proxy (vt worker.js), pane URL siia ----
-  // Näide: var OWN_PROXY_URL = 'https://tlt-gps-proxy.sinu-nimi.workers.dev';
   var OWN_PROXY_URL = 'https://tlt-gps-proxy.oliver-tedvig.workers.dev';
 
   var GPS_URL = 'https://transport.tallinn.ee/gps.txt';
@@ -364,11 +354,6 @@
   var POLL_MS = 6000;
   var ANIM_MS = 5500;
 
-  // Sellest suumitasemest ALLPOOL (nt kogu linna ülevaade) näidatakse kõiki sõidukeid
-  // korraga, kuid ILMA liikumisanimatsioonita — nii kaugelt vaadates pole animatsiooni
-  // niikuinii näha, aga see nõuab siiski arvutust igal kaadril, mis tekitab mobiilis
-  // läkatust just suumimise ajal. Sellest tasemest ALATES (korralikult sisse suumitud)
-  // kuvatakse ainult parajasti nähtaval alal olevad sõidukid ja NEED animeeritakse.
   var ZOOM_DETAIL_THRESHOLD = 15;
 
   var COLORS = { '1': '#0060d3', '2': '#00e2b6', '3': '#ff5f26', '7': '#7a5cff' };
@@ -392,14 +377,23 @@
     ]}
   ];
 
+  // ===== TROLLI ASENDUSE TUVASTUS (ALGUS) =====
+  var TROLL_SUBSTITUTE_COLOR = '#003474';
+  var TROLL_SUBSTITUTE_LABEL = 'Trolli asendus';
+  var BUS_MODEL_SET = (function() {
+    var s = new Set();
+    MODEL_CATALOG.forEach(function(group) {
+      if (group.group === 'Bussid') group.models.forEach(function(m) { s.add(m); });
+    });
+    return s;
+  })();
+  function isTrollSubstitute(d) {
+    return d.type === '1' && BUS_MODEL_SET.has(d.model);
+  }
+  // ===== TROLLI ASENDUSE TUVASTUS (LÕPP) =====
   // ============================================================
   // SÕIDUKI MUDELID — registrinumber -> mudel
-  // Siia on lihtne käsitsi lisada/muuta: iga rida on '"registrinumber": "mudeli nimi",'
-  // Kui mõne sõiduki registrinumbrile pole siin vastet, näidatakse popupis "Teadmata".
-  // ============================================================
-  // ============================================================
-  // SÕIDUKI MUDELID — registrinumber -> mudel
-  // Siia on lihtne käsitsi lisada/muuta: iga rida on '"registrinumber": "mudeli nimi",'
+  // Iga rida on '"registrinumber": "mudeli nimi",'
   // Kui mõne sõiduki registrinumbrile pole siin vastet, näidatakse popupis "Teadmata".
   // ============================================================
   var VEHICLE_MODELS = {
@@ -1106,24 +1100,12 @@
     attribution: '&copy; Esri &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
   });
 
-  satelliteLayer.addTo(map);
-  var satelliteOn = true;
+  var lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    attribution: '&copy; OpenStreetMap &copy; CARTO &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
+  });
 
-  // Peavoo/GPU koormuse vähendamiseks zoomimise ajal (eriti oluline mobiilis,
-  // kus puuteekraani pigistus-zoom nõuab pidevat, reaalajas ümberskaleerimist,
-  // erinevalt ühe sõrmega liigutamisest, mis lihtsalt nihutab olemasolevat pilti):
-  //
-  // 1) Peatame kohe kõik käimasolevad sõidukite liikumisanimatsioonid
-  //    (vt snapAllAnimationsToFinal allpool), et need ei arvutaks asukohti
-  //    samal ajal, kui kaart end ümber skaleerib.
-  // 2) Peidame kogu sõidukimarkerite kihi ("markerPane") pigistuse ajaks.
-  //    Sadu eraldi markeri-DOM-elementi (igaühel oma transform + drop-shadow
-  //    varjuefekt) tuleks muidu iga sõrmeliigutuse kaadri kohta uuesti
-  //    rasteriseerida — just see skaleerimise, mitte nihutamise, kulu ongi
-  //    nõrgema mobiiliriistvara jaoks üle jõu käiv. Kui markerid on
-  //    zoomimise ajaks nähtamatud, pole brauseril midagi ümber skaleerida
-  //    ning kaardi enda (teede/taustakihi) pigistus jääb sujuvaks. Markerid
-  //    ilmuvad kohe tagasi, kui zoom lõpeb.
   var markerPane = map.getPane('markerPane');
   map.on('zoomstart', function() {
     snapAllAnimationsToFinal();
@@ -1177,8 +1159,9 @@
   }
 
   function popupHTML(d) {
-    var color = COLORS[d.type] || '#999';
-    var name = TYPE_NAMES[d.type] || 'Sõiduk';
+    var isSub = isTrollSubstitute(d);
+    var color = isSub ? TROLL_SUBSTITUTE_COLOR : (COLORS[d.type] || '#999');
+    var name = isSub ? TROLL_SUBSTITUTE_LABEL : (TYPE_NAMES[d.type] || 'Sõiduk');
     var dest = d.destination && d.destination.trim() !== '' ? d.destination.trim() : '—';
     var model = d.model || 'Teadmata';
     var img = '';
@@ -1219,15 +1202,6 @@
   }
 
   // ---------- Shared animation loop ----------
-  // Varem sai iga sõiduk oma eraldi requestAnimationFrame-tsükli. Kuna korraga on
-  // liikvel sadu sõidukeid ja iga animatsioon kestab peaaegu kogu uuendustsükli
-  // (ANIM_MS lähedal POLL_MS-ile), jooksis peaaegu kogu aeg korraga sadu paralleelseid
-  // rAF-kutseid, millest igaüks tegi ka DOM-otsingu (querySelector) igal kaadril.
-  // See koormas peavoogu pidevalt ja jooksis kokku Leafleti enda zoom-ümberarvutusega,
-  // mis tekitaski tugeva läkatuse just zoomimise hetkel. Nüüd on kõigi sõidukite
-  // liikumine koondatud ÜHTE jagatud tsüklisse ning zoomi alguses peatatakse
-  // animatsioonid koheselt (sõidukid "hüppavad" oma sihtasukohta), et zoomiga
-  // ei konkureeriks samal ajal sadu liikumisarvutusi.
   var activeEntries = new Set();
   var tickHandle = null;
 
@@ -1294,7 +1268,8 @@
     var existing = vehicles[id];
 
     if (!existing) {
-      var icon = makeIcon(COLORS[d.type] || '#999', d.headingNum);
+      var iconColor = isTrollSubstitute(d) ? TROLL_SUBSTITUTE_COLOR : (COLORS[d.type] || '#999');
+      var icon = makeIcon(iconColor, d.headingNum);
       var marker = L.marker([d.lat, d.lon], { icon: icon, riseOnHover: true });
       marker.bindPopup(popupHTML(d));
       if (visible) marker.addTo(map);
@@ -1483,7 +1458,8 @@
       var hh = String(now.getHours()).padStart(2,'0');
       var mm = String(now.getMinutes()).padStart(2,'0');
       var ss = String(now.getSeconds()).padStart(2,'0');
-      setStatus('ok', total + ' sõidukit \u00b7 ' + hh + ':' + mm + ':' + ss);
+      var breakdown = counts['1'] + ' trolli \u00b7 ' + counts['3'] + ' trammi \u00b7 ' + counts['2'] + ' bussi \u00b7 ' + counts['7'] + ' ööbussi';
+      setStatus('ok', 'LIVE \u00b7 ' + total + ' sõidukit (' + breakdown + ') \u00b7 ' + hh + ':' + mm + ':' + ss);
     } catch (e) {
       setStatus('bad', 'Ühendus ebaõnnestus');
       errorBanner.style.display = 'block';
@@ -1498,55 +1474,86 @@
   var regInput = document.getElementById('regInput');
   var lineInput = document.getElementById('lineInput');
 
+  // Kui otsingu/filtri tulemusena vastab TÄPSELT üks sõiduk, keskendume kaardil
+  // automaatselt tema peale ja avame ta andmekaardi. Kasutab reaalset filtrit
+  // (mitte vaateala-piirangut), et see töötaks olenemata sellest, kus kaardil parasjagu ollakse.
+  function autoSelectIfSingleMatch() {
+    var onlyMatch = null;
+    var count = 0;
+    for (var id in vehicles) {
+      var v = vehicles[id];
+      if (passesFilter(v.data)) {
+        count++;
+        onlyMatch = v;
+        if (count > 1) return;
+      }
+    }
+    if (count === 1 && onlyMatch) {
+      map.flyTo([onlyMatch.lat, onlyMatch.lon], Math.max(map.getZoom(), 17), { duration: 0.6 });
+      onlyMatch.marker.openPopup();
+    }
+  }
+
   regInput.addEventListener('input', function() {
     filters.reg = regInput.value.trim().toLowerCase();
     reapplyAllFilters();
+    autoSelectIfSingleMatch();
   });
   lineInput.addEventListener('input', function() {
     filters.line = lineInput.value.trim().toLowerCase();
     reapplyAllFilters();
+    autoSelectIfSingleMatch();
   });
+
+  // Sõidukitüübi kiipe klõpsates NÄIDATAKSE ainult seda tüüpi (isoleeriv valik),
+  // mitte ei lülitata seda lihtsalt teiste seast välja. "Kuva kõik sõidukid" taastab kõik korraga.
+  var CHIP_TYPE_MAP = { chipTroll: '1', chipTram: '3', chipBus: '2', chipNight: '7' };
 
   function wireChip(chipId, typeKey) {
     var chip = document.getElementById(chipId);
-    var box = chip.querySelector('input');
     chip.addEventListener('click', function(e) {
       e.preventDefault();
-      box.checked = !box.checked;
-      filters.types[typeKey] = box.checked;
-      chip.classList.toggle('off', !box.checked);
+      Object.keys(CHIP_TYPE_MAP).forEach(function(id) {
+        var key = CHIP_TYPE_MAP[id];
+        var isActive = (key === typeKey);
+        filters.types[key] = isActive;
+        var c = document.getElementById(id);
+        c.querySelector('input').checked = isActive;
+        c.classList.toggle('off', !isActive);
+      });
       reapplyAllFilters();
+      autoSelectIfSingleMatch();
     });
   }
   wireChip('chipTroll', '1');
+  wireChip('chipTram', '3');
   wireChip('chipBus', '2');
   wireChip('chipNight', '7');
-  wireChip('chipTram', '3');
 
   document.getElementById('showAllBtn').addEventListener('click', showAll);
-  document.getElementById('mapModeBtn').addEventListener('click', function() {
-    satelliteOn = !satelliteOn;
+
+  // ---------- Kaardirežiimid: satelliit / tume / hele, tsükliliselt ühe nupuga ----------
+  var MAP_MODES = [
+    { key: 'satellite', label: '🛰️ Satelliitvaade', layer: satelliteLayer, darkFilter: false },
+    { key: 'dark',      label: '🌑 Tume režiim',      layer: darkLayer,      darkFilter: true  },
+    { key: 'light',     label: '☀️ Hele režiim',      layer: lightLayer,     darkFilter: false }
+  ];
+  var currentModeIndex = 0;
+
+  function applyMapMode(idx) {
     var mapEl = document.getElementById('map');
-    var btn = document.getElementById('mapModeBtn');
-    if (satelliteOn) {
-      map.removeLayer(darkLayer);
-      satelliteLayer.addTo(map);
-      mapEl.classList.remove('dark-mode');
-      btn.textContent = '🛰️ Satelliitvaade';
-    } else {
-      map.removeLayer(satelliteLayer);
-      darkLayer.addTo(map);
-      mapEl.classList.add('dark-mode');
-      btn.textContent = '🌑 Puhas režiim';
-    }
-  });
-  document.getElementById('resetBtn').addEventListener('click', function() {
-    regInput.value = '';
-    lineInput.value = '';
-    filters.reg = '';
-    filters.line = '';
-    clearModelSelection();
-    reapplyAllFilters();
+    MAP_MODES.forEach(function(m, i) {
+      if (i !== idx && map.hasLayer(m.layer)) map.removeLayer(m.layer);
+    });
+    var mode = MAP_MODES[idx];
+    if (!map.hasLayer(mode.layer)) mode.layer.addTo(map);
+    mapEl.classList.toggle('dark-mode', mode.darkFilter);
+    document.getElementById('mapModeBtn').textContent = mode.label;
+    currentModeIndex = idx;
+  }
+
+  document.getElementById('mapModeBtn').addEventListener('click', function() {
+    applyMapMode((currentModeIndex + 1) % MAP_MODES.length);
   });
 
   function showAll() {
@@ -1587,6 +1594,7 @@
         else filters.models.delete(model);
         updateModelButtonLabel();
         reapplyAllFilters();
+        autoSelectIfSingleMatch();
       });
     });
     document.getElementById('clearModelsBtn').addEventListener('click', function() {
@@ -1618,10 +1626,7 @@
   });
   modelDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
 
-  // ---------- Mobiilivaates vii "Mudel/Puhasta otsing/Kuva kõik" paneelist välja ----------
-  // #panel kasutab backdrop-filter'it, mis CSS spec'i järgi tekitab uue containing block'i
-  // position:fixed lastele — nii jääks nupugrupp "fixed" siiski paneeli, mitte ekraani suhtes.
-  // Lihtsaim usaldusväärne lahendus: liigutame elemendi DOM-is füüsiliselt paneelist välja.
+  // ---------- Mobiilivaates "Mudel/Puhasta otsing/Kuva kõik" alla ----------
   (function setupSecondaryControlsRelocation() {
     var secCtrl = document.getElementById('secondaryControls');
     var anchor = document.createComment('secondaryControls-anchor');
@@ -1641,6 +1646,7 @@
   })();
 
   // Initial state: show all vehicles on load
+  applyMapMode(0); // vaikimisi: satelliitvaade
   showAll();
   poll();
 
