@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tallinna ühistranspordi kaart</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg: #0a0c10;
+    --panel: #12151b;
+    --panel-border: #232833;
+    --text: #e7eaee;
+    --text-dim: #8b93a1;
+    --troll: #0060d3;
+    --bus: #00e2b6;
+    --night: #7a5cff;
+    --tram: #ff5f26;
+    --accent: #e7eaee;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  #map { position:absolute; inset:0; z-index:0; background: var(--bg); }
+
+  /* Dark tile filter to deepen the base map (only in dark mode, not satellite) */
+  #map.dark-mode .leaflet-tile-pane { filter: brightness(0.85) contrast(1.05); }
+  .leaflet-control-attribution {
+    background: rgba(10,12,16,0.7) !important;
+    color: var(--text-dim) !important;
+    font-size: 10px !important;
+  }
+  .leaflet-control-attribution a { color: var(--text-dim) !important; }
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-color: var(--panel-border) !important;
+  }
+  .leaflet-control-zoom a:hover { background: #1a1f28 !important; }
+
+  /* Top control panel */
+  #panel {
+    position:absolute; top:14px; left:14px; right:14px;
+    z-index: 1000;
+    background: rgba(18,21,27,0.92);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    backdrop-filter: blur(10px);
+    display:flex;
+    flex-wrap: wrap;
+    align-items:center;
+    gap: 14px;
+    font-size: 13px;
+  }
+  .brand {
+    display:flex;
+    align-items:center;
+    padding-right: 12px;
+    border-right: 1px solid var(--panel-border);
+    flex: none;
+  }
+  .brand #logoImg {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    border-radius: 6px;
+    display:block;
+  }
+  .brand .brand-text {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    color: var(--text);
+  }
+  .field { display:flex; flex-direction:column; gap:3px; }
+  .field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+  .field input[type="text"] {
+    background: #0e1116;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 13px;
+    width: 130px;
+    outline: none;
+  }
+  .field input[type="text"]:focus { border-color: #3a4150; }
+  .field input[type="text"]::placeholder { color: #545c6a; }
+
+  .types { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
+  .chip {
+    display:flex; align-items:center; gap:6px;
+    background:#0e1116; border:1px solid var(--panel-border);
+    border-radius: 999px; padding: 6px 12px 6px 8px; cursor:pointer;
+    user-select:none; font-size:12px; white-space:nowrap;
+    transition: border-color .15s ease, opacity .15s ease;
+  }
+  .chip input { display:none; }
+  .chip .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .chip.off { opacity: 0.35; }
+  .chip:hover { border-color:#3a4150; }
+
+  #showAllBtn, #resetBtn {
+    background: var(--text);
+    color: #0a0c10;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #resetBtn {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--panel-border);
+    font-weight: 600;
+  }
+  #showAllBtn:hover { opacity:0.85; }
+  #resetBtn:hover { color: var(--text); border-color:#3a4150; }
+
+  #mapModeBtn {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    z-index: 1000;
+    background: rgba(18,21,27,0.92);
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
+  }
+  #mapModeBtn:hover { border-color:#3a4150; background: rgba(24,28,36,0.95); }
+
+  .spacer { flex: 1 1 auto; }
+
+  #status {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    display:flex; align-items:center; gap:8px;
+  }
+  #statusDot { width:8px; height:8px; border-radius:50%; background:#555; flex:none; transition: background .2s ease; }
+  #statusDot.ok { background:#00e2b6; box-shadow: 0 0 6px #00e2b6; }
+  #statusDot.bad { background:#ff4d4d; box-shadow: 0 0 6px #ff4d4d; }
+  #statusDot.pending { background:#e8b93f; }
+
+  #errorBanner {
+    position:absolute; top: 76px; left:14px; z-index:1000;
+    background: rgba(58, 16, 16, 0.92);
+    border:1px solid #6e2020;
+    color:#ffd5d5;
+    padding:10px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    max-width: 420px;
+    display:none;
+  }
+
+  /* Vehicle marker */
+  .veh-icon { transition: none; }
+  .veh-shape {
+    width: 22px; height: 22px;
+    display:flex; align-items:center; justify-content:center;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
+  }
+  .veh-shape svg { display:block; }
+  .veh-label {
+    position:absolute;
+    top: 22px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    font-weight: 700;
+    color: #0a0c10;
+    background: rgba(231,234,238,0.92);
+    padding: 0px 4px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  /* Popup */
+  .leaflet-popup-content-wrapper {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+  }
+  .leaflet-popup-tip { background: var(--panel); }
+  .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
+  .veh-photo {
+    display: block;
+    width: 100%;
+    max-height: 130px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 8px;
+  }
+  .popup-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; display:flex; align-items:center; gap:7px; }
+  .popup-title .dot { width:10px; height:10px; border-radius:50%; }
+  .popup-row { display:flex; justify-content:space-between; gap: 16px; padding: 2px 0; color: var(--text-dim); font-size: 12px; }
+  .popup-row b { color: var(--text); font-weight:600; }
+
+  #secondaryControls { display: contents; }
+
+  @media (max-width: 720px) {
+    #panel { top: 8px; left: 8px; right: 8px; padding: 10px; gap: 10px; }
+    .field input[type="text"] { width: 100px; }
+    #status { width: 100%; order: 10; }
+
+    #secondaryControls {
+      display: flex;
+      position: fixed;
+      left: 14px;
+      bottom: 14px;
+      z-index: 1000;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    #secondaryControls #resetBtn,
+    #secondaryControls #modelFilterBtn {
+      background: rgba(18,21,27,0.92);
+      backdrop-filter: blur(10px);
+    }
+    #secondaryControls #modelDropdown {
+      top: auto;
+      bottom: calc(100% + 6px);
+    }
+  }
+
+  #modelFilterBtn {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #modelFilterBtn:hover { color: var(--text); border-color:#3a4150; }
+  #modelFilterBtn.active-filter { border-color: var(--bus); color: var(--bus); }
+
+  #modelDropdown {
+    display:none;
+    position:absolute;
+    top: calc(100% + 6px);
+    left:0;
+    z-index: 1100;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 10px;
+    width: 260px;
+    max-height: 340px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  #modelDropdown.open { display:block; }
+  #modelDropdown .group-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    margin: 8px 0 4px;
+  }
+  #modelDropdown .group-title:first-child { margin-top: 0; }
+  #modelDropdown label {
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    font-size: 12.5px;
+    padding: 4px 2px;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  #modelDropdown label:hover { background:#1a1f28; }
+  #modelDropdown input { accent-color: var(--bus); }
+  #modelDropdown .clear-models {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--panel-border);
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-align: right;
+  }
+  #modelDropdown .clear-models:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+  <div class="brand">
+    <img id="logoImg" src="logo.png" alt="Tallinna ÜT" onerror="this.onerror=null; this.replaceWith(Object.assign(document.createElement('span'), {className:'brand-text', textContent:'Tallinna ÜT'}));">
+  </div>
+
+  <div class="field">
+    <label for="regInput">Registrinumber</label>
+    <input type="text" id="regInput" placeholder="nt 3576" autocomplete="off">
+  </div>
+
+  <div class="field">
+    <label for="lineInput">Liin</label>
+    <input type="text" id="lineInput" placeholder="nt 50" autocomplete="off">
+  </div>
+
+  <div class="types">
+    <label class="chip" id="chipTroll"><input type="checkbox" checked><span class="dot" style="background:var(--troll)"></span>Trollid</label>
+    <label class="chip" id="chipBus"><input type="checkbox" checked><span class="dot" style="background:var(--bus)"></span>Bussid</label>
+    <label class="chip" id="chipNight"><input type="checkbox" checked><span class="dot" style="background:var(--night)"></span>Ööbussid</label>
+    <label class="chip" id="chipTram"><input type="checkbox" checked><span class="dot" style="background:var(--tram)"></span>Trammid</label>
+  </div>
+
+  <div id="secondaryControls">
+    <div style="position:relative;">
+      <button id="modelFilterBtn" type="button">Mudel ▾</button>
+      <div id="modelDropdown"></div>
+    </div>
+
+    <button id="resetBtn">Puhasta otsing</button>
+    <button id="showAllBtn">Kuva kõik sõidukid</button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div id="status"><span id="statusDot" class="pending"></span><span id="statusText">Ühendan…</span></div>
+</div>
+
+<div id="errorBanner"></div>
+
+<button id="mapModeBtn" title="Vaheta kaardirežiimi">🛰️ Satelliitvaade</button>
+
+<script>
+(function(){
+
+  // ---------- Config ----------
+  // ---- Kui deployid oma Cloudflare Worker proxy (vt worker.js), pane URL siia ----
+  // Näide: var OWN_PROXY_URL = 'https://tlt-gps-proxy.sinu-nimi.workers.dev';
+  var OWN_PROXY_URL = 'https://tlt-gps-proxy.oliver-tedvig.workers.dev';
+
+  var GPS_URL = 'https://transport.tallinn.ee/gps.txt';
+  var SOURCES = (OWN_PROXY_URL ? [OWN_PROXY_URL] : []).concat([
+    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(GPS_URL),
+    GPS_URL,
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(GPS_URL),
+    'https://corsproxy.io/?url=' + encodeURIComponent(GPS_URL)
+  ]);
+  var FETCH_TIMEOUT_MS = 4500;
+  var SAME_SOURCE_RETRIES = 2;      // enne teisele allikale hüppamist proovi sama allikat mitu korda
+  var SAME_SOURCE_RETRY_DELAY_MS = 700;
+  var POLL_MS = 6000;
+  var ANIM_MS = 5500;
+
+  var COLORS = { '1': '#0060d3', '2': '#00e2b6', '3': '#ff5f26', '7': '#7a5cff' };
+  var TYPE_NAMES = { '1': 'Trollibuss', '2': 'Buss', '3': 'Tramm', '7': 'Ööbuss' };
+
+  // ---------- Mudelite kataloog (filtri jaoks kuvatavad valikud, grupeeritud) ----------
+  // Siia lisatud mudelid ilmuvad "Mudel" filtris. Rea lisamiseks/eemaldamiseks piisab
+  // vastava stringi lisamisest/kustutamisest allolevast massiivist.
+  var MODEL_CATALOG = [
+    { group: 'Bussid', models: [
+      'Solaris Urbino IV 18 CNG', 'Solaris Urbino IV 12 CNG',
+      "MAN A40 Lion's City GL NG323", "MAN A78 Lion's City LE EL293", "MAN A21 Lion's City NL283",
+      'Volvo 7900 Hybrid', 'BMC Procity II 12 CNG', 'BMC Procity II 18 CNG'
+    ]},
+    { group: 'Trollid', models: [
+      'Škoda 32tr', 'Škoda 33tr', 'Solaris Trollino III 18 AC', 'Solaris Trollino III 12 AC'
+    ]},
+    { group: 'Trammid', models: [
+      'Tatra KT4SU', 'Tatra KT4D', 'Tatra KT6TM', 'Tatra KT4TM', 'Tatra KT4TMR',
+      'CAF Urbos AXL', 'PESA Twist 147N'
+    ]}
+  ];
+
+  // ============================================================
+  // SÕIDUKI MUDELID — registrinumber -> mudel
+  // Siia on lihtne käsitsi lisada/muuta: iga rida on '"registrinumber": "mudeli nimi",'
+  // Kui mõne sõiduki registrinumbrile pole siin vastet, näidatakse popupis "Teadmata".
+  // ============================================================
+  // ============================================================
+  // SÕIDUKI MUDELID — registrinumber -> mudel
+  // Siia on lihtne käsitsi lisada/muuta: iga rida on '"registrinumber": "mudeli nimi",'
+  // Kui mõne sõiduki registrinumbrile pole siin vastet, näidatakse popupis "Teadmata".
+  // ============================================================
+  var VEHICLE_MODELS = {
+    // ---- BUSSID ----
+    '1003': 'Solaris Urbino IV 18 CNG',
+    '1009': 'Solaris Urbino IV 18 CNG',
+    '1012': 'MAN A40 Lion\'s City GL NG323',
+    '1013': 'MAN A40 Lion\'s City GL NG323',
+    '1014': 'MAN A40 Lion\'s City GL NG323',
+    '1016': 'Solaris Urbino IV 18 CNG',
+    '1017': 'Solaris Urbino IV 18 CNG',
+    '1018': 'MAN A40 Lion\'s City GL NG323',
+    '1019': 'Solaris Urbino IV 18 CNG',
+    '1020': 'MAN A40 Lion\'s City GL NG323',
+    '1021': 'MAN A40 Lion\'s City GL NG323',
+    '1022': 'Solaris Urbino IV 18 CNG',
+    '1023': 'MAN A40 Lion\'s City GL NG323',
+    '1024': 'MAN A40 Lion\'s City GL NG323',
+    '1028': 'Solaris Urbino IV 18 CNG',
+    '1029': 'MAN A40 Lion\'s City GL NG323',
+    '1030': 'MAN A40 Lion\'s City GL NG323',
+    '1031': 'MAN A40 Lion\'s City GL NG323',
+    '1037': 'MAN A40 Lion\'s City GL NG323',
+    '1038': 'MAN A40 Lion\'s City GL NG323',
+    '1039': 'Solaris Urbino IV 18 CNG',
+    '1047': 'MAN A78 Lion\'s City LE EL293',
+    '1071': 'Solaris Urbino IV 12 CNG',
+    '1097': 'Solaris Urbino IV 18 CNG',
+    '1099': 'Solaris Urbino IV 18 CNG',
+    '1107': 'MAN A78 Lion\'s City LE EL293',
+    '1108': 'MAN A78 Lion\'s City LE EL293',
+    '1109': 'MAN A78 Lion\'s City LE EL293',
+    '1110': 'MAN A78 Lion\'s City LE EL293',
+    '1112': 'MAN A78 Lion\'s City LE EL293',
+    '1113': 'MAN A78 Lion\'s City LE EL293',
+    '1114': 'MAN A78 Lion\'s City LE EL293',
+    '1115': 'MAN A78 Lion\'s City LE EL293',
+    '1116': 'Solaris Urbino IV 12 CNG',
+    '1117': 'Solaris Urbino IV 12 CNG',
+    '1118': 'MAN A78 Lion\'s City LE EL293',
+    '1119': 'MAN A78 Lion\'s City LE EL293',
+    '1120': 'MAN A78 Lion\'s City LE EL293',
+    '1121': 'MAN A78 Lion\'s City LE EL293',
+    '1141': 'MAN A78 Lion\'s City LE EL293',
+    '1142': 'MAN A78 Lion\'s City LE EL293',
+    '1143': 'MAN A78 Lion\'s City LE EL293',
+    '1144': 'MAN A78 Lion\'s City LE EL293',
+    '1145': 'MAN A21 Lion\'s City NL283',
+    '1149': 'Solaris Urbino IV 12 CNG',
+    '1152': 'Solaris Urbino IV 12 CNG',
+    '1153': 'Solaris Urbino IV 12 CNG',
+    '1157': 'Solaris Urbino IV 12 CNG',
+    '1158': 'Solaris Urbino IV 12 CNG',
+    '1160': 'Volvo 7900 Hybrid',
+    '1161': 'Volvo 7900 Hybrid',
+    '1162': 'Volvo 7900 Hybrid',
+    '1163': 'Volvo 7900 Hybrid',
+    '1164': 'Volvo 7900 Hybrid',
+    '1165': 'Volvo 7900 Hybrid',
+    '1166': 'Volvo 7900 Hybrid',
+    '1167': 'Volvo 7900 Hybrid',
+    '1168': 'Volvo 7900 Hybrid',
+    '1169': 'Volvo 7900 Hybrid',
+    '1170': 'Volvo 7900 Hybrid',
+    '1171': 'Volvo 7900 Hybrid',
+    '1180': 'Solaris Urbino IV 12 CNG',
+    '1186': 'Solaris Urbino IV 12 CNG',
+    '1187': 'Solaris Urbino IV 12 CNG',
+    '1203': 'Solaris Urbino IV 12 CNG',
+    '1204': 'Solaris Urbino IV 12 CNG',
+    '1214': 'Solaris Urbino IV 18 CNG',
+    '1215': 'Solaris Urbino IV 12 CNG',
+    '1216': 'Solaris Urbino IV 18 CNG',
+    '1222': 'Solaris Urbino IV 12 CNG',
+    '1223': 'Solaris Urbino IV 12 CNG',
+    '1225': 'Solaris Urbino IV 12 CNG',
+    '1226': 'MAN A78 Lion\'s City LE EL293',
+    '1227': 'MAN A78 Lion\'s City LE EL293',
+    '1230': 'Solaris Urbino IV 12 CNG',
+    '1232': 'Solaris Urbino IV 12 CNG',
+    '1233': 'Solaris Urbino IV 12 CNG',
+    '1235': 'Solaris Urbino IV 12 CNG',
+    '1236': 'Solaris Urbino IV 12 CNG',
+    '1238': 'Solaris Urbino IV 12 CNG',
+    '1240': 'Solaris Urbino IV 12 CNG',
+    '1242': 'Solaris Urbino IV 12 CNG',
+    '1243': 'Solaris Urbino IV 12 CNG',
+    '1244': 'Solaris Urbino IV 12 CNG',
+    '1248': 'Solaris Urbino IV 12 CNG',
+    '1249': 'Solaris Urbino IV 18 CNG',
+    '1262': 'Solaris Urbino IV 12 CNG',
+    '1263': 'BMC Procity II 18 CNG',
+    '1265': 'Solaris Urbino IV 12 CNG',
+    '1277': 'Solaris Urbino IV 12 CNG',
+    '1281': 'Solaris Urbino IV 12 CNG',
+    '1289': 'Solaris Urbino IV 12 CNG',
+    '1297': 'Solaris Urbino IV 12 CNG',
+    '1300': 'Solaris Urbino IV 18 CNG',
+    '1301': 'Solaris Urbino IV 18 CNG',
+    '1302': 'Solaris Urbino IV 18 CNG',
+    '1304': 'Solaris Urbino IV 18 CNG',
+    '1305': 'Solaris Urbino IV 18 CNG',
+    '1315': 'Solaris Urbino IV 18 CNG',
+    '1316': 'Solaris Urbino IV 18 CNG',
+    '1317': 'Solaris Urbino IV 18 CNG',
+    '1335': 'BMC Procity II 18 CNG',
+    '1337': 'BMC Procity II 18 CNG',
+    '1338': 'BMC Procity II 18 CNG',
+    '1347': 'Solaris Urbino IV 18 CNG',
+    '1348': 'Solaris Urbino IV 12 CNG',
+    '1362': 'BMC Procity II 18 CNG',
+    '1363': 'BMC Procity II 18 CNG',
+    '1364': 'BMC Procity II 18 CNG',
+    '1366': 'BMC Procity II 18 CNG',
+    '1367': 'BMC Procity II 18 CNG',
+    '1384': 'Solaris Urbino IV 18 CNG',
+    '1401': 'Solaris Urbino IV 18 CNG',
+    '1406': 'Solaris Urbino IV 12 CNG',
+    '1408': 'MAN A78 Lion\'s City LE EL293',
+    '1412': 'Solaris Urbino IV 18 CNG',
+    '1415': 'Solaris Urbino IV 18 CNG',
+    '1419': 'Solaris Urbino IV 18 CNG',
+    '1421': 'Solaris Urbino IV 18 CNG',
+    '1422': 'Solaris Urbino IV 18 CNG',
+    '1423': 'Solaris Urbino IV 18 CNG',
+    '1424': 'Solaris Urbino IV 18 CNG',
+    '1425': 'Solaris Urbino IV 18 CNG',
+    '1426': 'Solaris Urbino IV 18 CNG',
+    '1427': 'Solaris Urbino IV 18 CNG',
+    '1428': 'Solaris Urbino IV 18 CNG',
+    '1438': 'Solaris Urbino IV 18 CNG',
+    '1439': 'Solaris Urbino IV 18 CNG',
+    '1442': 'Solaris Urbino IV 18 CNG',
+    '1449': 'Solaris Urbino IV 18 CNG',
+    '1473': 'MAN A78 Lion\'s City LE EL293',
+    '1474': 'MAN A78 Lion\'s City LE EL293',
+    '1475': 'MAN A78 Lion\'s City LE EL293',
+    '1476': 'MAN A78 Lion\'s City LE EL293',
+    '1477': 'MAN A78 Lion\'s City LE EL293',
+    '1478': 'MAN A78 Lion\'s City LE EL293',
+    '1486': 'Solaris Urbino IV 18 CNG',
+    '1489': 'Solaris Urbino IV 18 CNG',
+    '1491': 'MAN A40 Lion\'s City GL NG323',
+    '1492': 'MAN A40 Lion\'s City GL NG323',
+    '1493': 'MAN A40 Lion\'s City GL NG323',
+    '1494': 'MAN A40 Lion\'s City GL NG323',
+    '1496': 'Solaris Urbino IV 12 CNG',
+    '1500': 'Solaris Urbino IV 12 CNG',
+    '1506': 'Solaris Urbino IV 12 CNG',
+    '1516': 'Solaris Urbino IV 18 CNG',
+    '1518': 'Solaris Urbino IV 18 CNG',
+    '1520': 'Solaris Urbino IV 18 CNG',
+    '1546': 'Solaris Urbino IV 18 CNG',
+    '1553': 'Solaris Urbino IV 18 CNG',
+    '1559': 'Solaris Urbino IV 12 CNG',
+    '1560': 'Solaris Urbino IV 12 CNG',
+    '1561': 'Solaris Urbino IV 18 CNG',
+    '1563': 'Solaris Urbino IV 18 CNG',
+    '1568': 'MAN A78 Lion\'s City LE EL293',
+    '1569': 'Solaris Urbino IV 18 CNG',
+    '1631': 'Solaris Urbino IV 18 CNG',
+    '1649': 'BMC Procity II 18 CNG',
+    '1710': 'Volvo 7900 Hybrid',
+    '1740': 'Volvo 7900 Hybrid',
+    '1742': 'Volvo 7900 Hybrid',
+    '1744': 'Volvo 7900 Hybrid',
+    '1747': 'Volvo 7900 Hybrid',
+    '1757': 'Solaris Urbino IV 12 CNG',
+    '1759': 'Volvo 7900 Hybrid',
+    '1772': 'Volvo 7900 Hybrid',
+    '1774': 'Volvo 7900 Hybrid',
+    '1798': 'Solaris Urbino IV 12 CNG',
+    '1813': 'Solaris Urbino IV 12 CNG',
+    '1829': 'Volvo 7900 Hybrid',
+    '1856': 'Solaris Urbino IV 18 CNG',
+    '1861': 'Volvo 7900 Hybrid',
+    '1885': 'Solaris Urbino IV 18 CNG',
+    '1888': 'Solaris Urbino IV 18 CNG',
+    '1908': 'Solaris Urbino IV 12 CNG',
+    '1942': 'Solaris Urbino IV 12 CNG',
+    '1956': 'Solaris Urbino IV 12 CNG',
+    '1957': 'Solaris Urbino IV 12 CNG',
+    '1960': 'Solaris Urbino IV 12 CNG',
+    '1961': 'Solaris Urbino IV 12 CNG',
+    '1967': 'Solaris Urbino IV 12 CNG',
+    '1969': 'Solaris Urbino IV 12 CNG',
+    '2032': 'Solaris Urbino IV 12 CNG',
+    '2034': 'Solaris Urbino IV 12 CNG',
+    '2035': 'Solaris Urbino IV 12 CNG',
+    '2045': 'Solaris Urbino IV 18 CNG',
+    '2048': 'BMC Procity II 12 CNG',
+    '2050': 'BMC Procity II 12 CNG',
+    '2061': 'Solaris Urbino IV 12 CNG',
+    '2064': 'Solaris Urbino IV 12 CNG',
+    '2065': 'Solaris Urbino IV 12 CNG',
+    '2068': 'Solaris Urbino IV 12 CNG',
+    '2069': 'Solaris Urbino IV 18 CNG',
+    '2070': 'Solaris Urbino IV 18 CNG',
+    '2073': 'Solaris Urbino IV 12 CNG',
+    '2074': 'Solaris Urbino IV 18 CNG',
+    '2081': 'BMC Procity II 12 CNG',
+    '2082': 'BMC Procity II 12 CNG',
+    '2091': 'BMC Procity II 12 CNG',
+    '2094': 'BMC Procity II 12 CNG',
+    '2095': 'BMC Procity II 12 CNG',
+    '2096': 'BMC Procity II 12 CNG',
+    '2100': 'Solaris Urbino IV 18 CNG',
+    '2122': 'Solaris Urbino IV 18 CNG',
+    '2123': 'Solaris Urbino IV 18 CNG',
+    '2125': 'Solaris Urbino IV 12 CNG',
+    '2126': 'Volvo 7900 Hybrid',
+    '2127': 'Solaris Urbino IV 12 CNG',
+    '2130': 'BMC Procity II 12 CNG',
+    '2132': 'Solaris Urbino IV 12 CNG',
+    '2133': 'Solaris Urbino IV 12 CNG',
+    '2134': 'Solaris Urbino IV 12 CNG',
+    '2140': 'Volvo 7900 Hybrid',
+    '2148': 'Solaris Urbino IV 18 CNG',
+    '2181': 'Volvo 7900 Hybrid',
+    '2188': 'Volvo 7900 Hybrid',
+    '2189': 'Volvo 7900 Hybrid',
+    '2194': 'Volvo 7900 Hybrid',
+    '2195': 'Solaris Urbino IV 12 CNG',
+    '2198': 'Volvo 7900 Hybrid',
+    '2199': 'Volvo 7900 Hybrid',
+    '2200': 'MAN A78 Lion\'s City LE EL293',
+    '2208': 'MAN A78 Lion\'s City LE EL293',
+    '2209': 'MAN A78 Lion\'s City LE EL293',
+    '2212': 'MAN A78 Lion\'s City LE EL293',
+    '2221': 'MAN A78 Lion\'s City LE EL293',
+    '2224': 'MAN A78 Lion\'s City LE EL293',
+    '2228': 'MAN A78 Lion\'s City LE EL293',
+    '2234': 'MAN A78 Lion\'s City LE EL293',
+    '2237': 'MAN A40 Lion\'s City GL NG323',
+    '2246': 'MAN A40 Lion\'s City GL NG323',
+    '2247': 'MAN A40 Lion\'s City GL NG323',
+    '2252': 'MAN A40 Lion\'s City GL NG323',
+    '2253': 'Solaris Urbino IV 12 CNG',
+    '2254': 'Solaris Urbino IV 18 CNG',
+    '2255': 'MAN A40 Lion\'s City GL NG323',
+    '2257': 'MAN A40 Lion\'s City GL NG323',
+    '2258': 'Solaris Urbino IV 12 CNG',
+    '2284': 'MAN A40 Lion\'s City GL NG323',
+    '2286': 'MAN A40 Lion\'s City GL NG323',
+    '2287': 'MAN A40 Lion\'s City GL NG323',
+    '2290': 'MAN A78 Lion\'s City LE EL293',
+    '2291': 'MAN A78 Lion\'s City LE EL293',
+    '2292': 'MAN A78 Lion\'s City LE EL293',
+    '2293': 'MAN A78 Lion\'s City LE EL293',
+    '2294': 'MAN A78 Lion\'s City LE EL293',
+    '2307': 'MAN A78 Lion\'s City LE EL293',
+    '2311': 'MAN A78 Lion\'s City LE EL293',
+    '2323': 'MAN A78 Lion\'s City LE EL293',
+    '2324': 'MAN A78 Lion\'s City LE EL293',
+    '2325': 'MAN A78 Lion\'s City LE EL293',
+    '2329': 'MAN A78 Lion\'s City LE EL293',
+    '2330': 'MAN A78 Lion\'s City LE EL293',
+    '2331': 'MAN A78 Lion\'s City LE EL293',
+    '2333': 'MAN A78 Lion\'s City LE EL293',
+    '2334': 'MAN A78 Lion\'s City LE EL293',
+    '2375': 'Solaris Urbino IV 18 CNG',
+    '2390': 'Solaris Urbino IV 18 CNG',
+    '2440': 'Solaris Urbino IV 18 CNG',
+    '2441': 'Solaris Urbino IV 12 CNG',
+    '2445': 'Solaris Urbino IV 12 CNG',
+    '2446': 'Solaris Urbino IV 12 CNG',
+    '2455': 'Solaris Urbino IV 18 CNG',
+    '2459': 'Solaris Urbino IV 18 CNG',
+    '2460': 'Solaris Urbino IV 18 CNG',
+    '2472': 'Solaris Urbino IV 12 CNG',
+    '2480': 'BMC Procity II 12 CNG',
+    '2481': 'BMC Procity II 12 CNG',
+    '2482': 'BMC Procity II 12 CNG',
+    '2483': 'Solaris Urbino IV 18 CNG',
+    '2484': 'BMC Procity II 12 CNG',
+    '2497': 'Solaris Urbino IV 12 CNG',
+    '2498': 'Volvo 7900 Hybrid',
+    '2501': 'Solaris Urbino IV 18 CNG',
+    '2502': 'Solaris Urbino IV 18 CNG',
+    '2504': 'Solaris Urbino IV 12 CNG',
+    '2508': 'Solaris Urbino IV 18 CNG',
+    '2510': 'Solaris Urbino IV 18 CNG',
+    '2513': 'Solaris Urbino IV 12 CNG',
+    '2515': 'Solaris Urbino IV 18 CNG',
+    '2519': 'Solaris Urbino IV 18 CNG',
+    '2522': 'Solaris Urbino IV 18 CNG',
+    '2523': 'Solaris Urbino IV 18 CNG',
+    '2524': 'Solaris Urbino IV 18 CNG',
+    '2525': 'Solaris Urbino IV 18 CNG',
+    '2526': 'Solaris Urbino IV 18 CNG',
+    '2527': 'Solaris Urbino IV 18 CNG',
+    '2542': 'Solaris Urbino IV 18 CNG',
+    '2543': 'Solaris Urbino IV 18 CNG',
+    '2556': 'Solaris Urbino IV 12 CNG',
+    '2557': 'Solaris Urbino IV 18 CNG',
+    '2566': 'Solaris Urbino IV 18 CNG',
+    '2567': 'BMC Procity II 12 CNG',
+    '2570': 'BMC Procity II 12 CNG',
+    '2580': 'Solaris Urbino IV 18 CNG',
+    '2590': 'BMC Procity II 12 CNG',
+    '2591': 'Solaris Urbino IV 18 CNG',
+    '2595': 'BMC Procity II 12 CNG',
+    '2596': 'BMC Procity II 12 CNG',
+    '2600': 'Solaris Urbino IV 12 CNG',
+    '2614': 'Solaris Urbino IV 18 CNG',
+    '2616': 'Solaris Urbino IV 18 CNG',
+    '2618': 'MAN A78 Lion\'s City LE EL293',
+    '2621': 'BMC Procity II 12 CNG',
+    '2632': 'MAN A78 Lion\'s City LE EL293',
+    '2635': 'Solaris Urbino IV 12 CNG',
+    '2641': 'Solaris Urbino IV 12 CNG',
+    '2643': 'Solaris Urbino IV 12 CNG',
+    '2645': 'Solaris Urbino IV 12 CNG',
+    '2647': 'Solaris Urbino IV 12 CNG',
+    '2648': 'MAN A78 Lion\'s City LE EL293',
+    '2650': 'MAN A78 Lion\'s City LE EL293',
+    '2658': 'Solaris Urbino IV 12 CNG',
+    '2660': 'MAN A78 Lion\'s City LE EL293',
+    '2662': 'Solaris Urbino IV 12 CNG',
+    '2668': 'Solaris Urbino IV 12 CNG',
+    '2669': 'Solaris Urbino IV 12 CNG',
+    '2671': 'Solaris Urbino IV 12 CNG',
+    '2672': 'Solaris Urbino IV 12 CNG',
+    '2673': 'MAN A40 Lion\'s City GL NG323',
+    '2677': 'Solaris Urbino IV 12 CNG',
+    '2683': 'Solaris Urbino IV 12 CNG',
+    '2684': 'Solaris Urbino IV 12 CNG',
+    '2689': 'Solaris Urbino IV 12 CNG',
+    '2690': 'Solaris Urbino IV 12 CNG',
+    '2695': 'MAN A40 Lion\'s City GL NG323',
+    '2700': 'MAN A21 Lion\'s City NL283',
+    '2701': 'MAN A21 Lion\'s City NL283',
+    '2705': 'MAN A40 Lion\'s City GL NG323',
+    '2706': 'MAN A40 Lion\'s City GL NG323',
+    '2707': 'MAN A40 Lion\'s City GL NG323',
+    '2716': 'Solaris Urbino IV 18 CNG',
+    '2720': 'Solaris Urbino IV 18 CNG',
+    '2721': 'Volvo 7900 Hybrid',
+    '2722': 'Volvo 7900 Hybrid',
+    '2723': 'Volvo 7900 Hybrid',
+    '2724': 'Volvo 7900 Hybrid',
+    '2725': 'Volvo 7900 Hybrid',
+    '2726': 'Volvo 7900 Hybrid',
+    '2727': 'Volvo 7900 Hybrid',
+    '2728': 'Volvo 7900 Hybrid',
+    '2729': 'Volvo 7900 Hybrid',
+    '2730': 'Volvo 7900 Hybrid',
+    '2731': 'Volvo 7900 Hybrid',
+    '2732': 'Volvo 7900 Hybrid',
+    '2748': 'Solaris Urbino IV 18 CNG',
+    '2752': 'Solaris Urbino IV 12 CNG',
+    '2757': 'Solaris Urbino IV 12 CNG',
+    '2764': 'Solaris Urbino IV 12 CNG',
+    '2767': 'Solaris Urbino IV 12 CNG',
+    '2770': 'Solaris Urbino IV 12 CNG',
+    '2773': 'Solaris Urbino IV 12 CNG',
+    '2775': 'Solaris Urbino IV 12 CNG',
+    '2776': 'Solaris Urbino IV 12 CNG',
+    '2777': 'Solaris Urbino IV 12 CNG',
+    '2784': 'Solaris Urbino IV 18 CNG',
+    '2787': 'Solaris Urbino IV 18 CNG',
+    '2789': 'Solaris Urbino IV 18 CNG',
+    '2801': 'Solaris Urbino IV 18 CNG',
+    '2804': 'Solaris Urbino IV 12 CNG',
+    '2849': 'Solaris Urbino IV 12 CNG',
+    '2861': 'Solaris Urbino IV 18 CNG',
+    '2895': 'Solaris Urbino IV 18 CNG',
+    '2896': 'Volvo 7900 Hybrid',
+    '2897': 'Solaris Urbino IV 12 CNG',
+    '2915': 'Solaris Urbino IV 18 CNG',
+    '2923': 'Solaris Urbino IV 12 CNG',
+    '3008': 'Solaris Urbino IV 12 CNG',
+    '3010': 'Solaris Urbino IV 12 CNG',
+    '3011': 'Solaris Urbino IV 18 CNG',
+    '3012': 'Solaris Urbino IV 18 CNG',
+    '3013': 'Solaris Urbino IV 18 CNG',
+    '3014': 'Solaris Urbino IV 18 CNG',
+    '3018': 'Solaris Urbino IV 18 CNG',
+    '3020': 'Solaris Urbino IV 18 CNG',
+    '3021': 'Solaris Urbino IV 18 CNG',
+    '3023': 'Solaris Urbino IV 18 CNG',
+    '3024': 'Solaris Urbino IV 18 CNG',
+    '3029': 'Solaris Urbino IV 12 CNG',
+    '3030': 'Solaris Urbino IV 12 CNG',
+    '3031': 'Solaris Urbino IV 12 CNG',
+    '3032': 'Solaris Urbino IV 12 CNG',
+    '3033': 'Solaris Urbino IV 18 CNG',
+    '3034': 'Solaris Urbino IV 18 CNG',
+    '3035': 'Solaris Urbino IV 18 CNG',
+    '3036': 'Solaris Urbino IV 12 CNG',
+    '3044': 'Solaris Urbino IV 18 CNG',
+    '3060': 'Solaris Urbino IV 12 CNG',
+    '3062': 'Solaris Urbino IV 18 CNG',
+    '3063': 'Solaris Urbino IV 18 CNG',
+    '3067': 'Solaris Urbino IV 18 CNG',
+    '3070': 'Solaris Urbino IV 18 CNG',
+    '3072': 'Solaris Urbino IV 12 CNG',
+    '3086': 'MAN A40 Lion\'s City GL NG323',
+    '3101': 'Solaris Urbino IV 12 CNG',
+    '3102': 'Solaris Urbino IV 12 CNG',
+    '3103': 'Solaris Urbino IV 12 CNG',
+    '3105': 'Solaris Urbino IV 12 CNG',
+    '3106': 'Solaris Urbino IV 12 CNG',
+    '3124': 'Solaris Urbino IV 18 CNG',
+    '3129': 'Solaris Urbino IV 18 CNG',
+    '3135': 'Solaris Urbino IV 12 CNG',
+    '3136': 'Solaris Urbino IV 12 CNG',
+    '3137': 'Solaris Urbino IV 12 CNG',
+    '3154': 'Solaris Urbino IV 12 CNG',
+    '3182': 'Solaris Urbino IV 18 CNG',
+    '3190': 'Solaris Urbino IV 12 CNG',
+    '3201': 'MAN A40 Lion\'s City GL NG323',
+    '3206': 'MAN A40 Lion\'s City GL NG323',
+    '3207': 'MAN A40 Lion\'s City GL NG323',
+    '3211': 'Solaris Urbino IV 12 CNG',
+    '3213': 'Solaris Urbino IV 12 CNG',
+    '3217': 'Solaris Urbino IV 12 CNG',
+    '3218': 'Solaris Urbino IV 12 CNG',
+    '3219': 'Solaris Urbino IV 12 CNG',
+    '3220': 'Solaris Urbino IV 12 CNG',
+    '3229': 'Solaris Urbino IV 12 CNG',
+    '3231': 'Solaris Urbino IV 12 CNG',
+    '3241': 'Solaris Urbino IV 12 CNG',
+    '3245': 'Solaris Urbino IV 12 CNG',
+    '3250': 'MAN A40 Lion\'s City GL NG323',
+    '3251': 'Solaris Urbino IV 12 CNG',
+    '3260': 'Solaris Urbino IV 12 CNG',
+    '3261': 'Solaris Urbino IV 12 CNG',
+    '3267': 'Solaris Urbino IV 12 CNG',
+    '3270': 'Solaris Urbino IV 18 CNG',
+    '3271': 'Solaris Urbino IV 18 CNG',
+    '3274': 'Solaris Urbino IV 12 CNG',
+    '3275': 'Solaris Urbino IV 12 CNG',
+    '3276': 'Solaris Urbino IV 12 CNG',
+    '3278': 'Solaris Urbino IV 12 CNG',
+    '3280': 'Solaris Urbino IV 12 CNG',
+    '3283': 'Solaris Urbino IV 12 CNG',
+    '3295': 'Solaris Urbino IV 12 CNG',
+    '3296': 'Solaris Urbino IV 18 CNG',
+    '3298': 'MAN A78 Lion\'s City LE EL293',
+    '3303': 'Solaris Urbino IV 12 CNG',
+    '3306': 'Solaris Urbino IV 12 CNG',
+    '3308': 'Solaris Urbino IV 12 CNG',
+    '3309': 'Solaris Urbino IV 12 CNG',
+    '3310': 'Solaris Urbino IV 12 CNG',
+    '3312': 'Solaris Urbino IV 12 CNG',
+    '3313': 'Solaris Urbino IV 12 CNG',
+    '3314': 'Solaris Urbino IV 12 CNG',
+    '3318': 'Solaris Urbino IV 12 CNG',
+    '3319': 'Solaris Urbino IV 12 CNG',
+    '3320': 'Solaris Urbino IV 12 CNG',
+    '3321': 'Solaris Urbino IV 18 CNG',
+    '3322': 'Solaris Urbino IV 12 CNG',
+    '3349': 'Solaris Urbino IV 12 CNG',
+    '3360': 'Solaris Urbino IV 18 CNG',
+    '3361': 'Solaris Urbino IV 18 CNG',
+    '3365': 'Solaris Urbino IV 18 CNG',
+    '3368': 'Solaris Urbino IV 18 CNG',
+    '3374': 'Solaris Urbino IV 12 CNG',
+    '3378': 'MAN A78 Lion\'s City LE EL293',
+    '3379': 'MAN A78 Lion\'s City LE EL293',
+    '3380': 'MAN A78 Lion\'s City LE EL293',
+    '3381': 'MAN A78 Lion\'s City LE EL293',
+    '3382': 'Solaris Urbino IV 18 CNG',
+    '3388': 'MAN A78 Lion\'s City LE EL293',
+    '3389': 'MAN A78 Lion\'s City LE EL293',
+    '3391': 'MAN A40 Lion\'s City GL NG323',
+    '3392': 'MAN A40 Lion\'s City GL NG323',
+    '3393': 'MAN A78 Lion\'s City LE EL293',
+    '3394': 'MAN A78 Lion\'s City LE EL293',
+    '3395': 'MAN A40 Lion\'s City GL NG323',
+    '3399': 'Solaris Urbino IV 18 CNG',
+    '3400': 'MAN A40 Lion\'s City GL NG323',
+    '3420': 'Solaris Urbino IV 12 CNG',
+    '3429': 'MAN A78 Lion\'s City LE EL293',
+    '3430': 'MAN A78 Lion\'s City LE EL293',
+    '3431': 'MAN A78 Lion\'s City LE EL293',
+    '3432': 'MAN A78 Lion\'s City LE EL293',
+    '3433': 'MAN A78 Lion\'s City LE EL293',
+    '3434': 'MAN A78 Lion\'s City LE EL293',
+    '3435': 'MAN A78 Lion\'s City LE EL293',
+    '3436': 'MAN A78 Lion\'s City LE EL293',
+    '3437': 'MAN A78 Lion\'s City LE EL293',
+    '3444': 'Solaris Urbino IV 18 CNG',
+    '3447': 'Solaris Urbino IV 12 CNG',
+    '3450': 'Solaris Urbino IV 12 CNG',
+    '3457': 'Solaris Urbino IV 12 CNG',
+    '3458': 'Solaris Urbino IV 12 CNG',
+    '3466': 'Solaris Urbino IV 18 CNG',
+    '3467': 'Solaris Urbino IV 18 CNG',
+    '3468': 'Solaris Urbino IV 18 CNG',
+    '3469': 'Solaris Urbino IV 12 CNG',
+    '3470': 'Solaris Urbino IV 18 CNG',
+    '3479': 'Solaris Urbino IV 18 CNG',
+    '3485': 'Solaris Urbino IV 18 CNG',
+    '3487': 'Solaris Urbino IV 18 CNG',
+    '3488': 'Solaris Urbino IV 18 CNG',
+    '3490': 'Solaris Urbino IV 18 CNG',
+    '3495': 'Solaris Urbino IV 18 CNG',
+    '3499': 'MAN A78 Lion\'s City LE EL293',
+    '3505': 'Solaris Urbino IV 12 CNG',
+    '3507': 'MAN A40 Lion\'s City GL NG323',
+    '3509': 'MAN A40 Lion\'s City GL NG323',
+    '3511': 'Solaris Urbino IV 12 CNG',
+    '3512': 'Solaris Urbino IV 12 CNG',
+    '3517': 'Solaris Urbino IV 18 CNG',
+    '3521': 'Solaris Urbino IV 12 CNG',
+    '3528': 'MAN A78 Lion\'s City LE EL293',
+    '3529': 'MAN A78 Lion\'s City LE EL293',
+    '3530': 'MAN A78 Lion\'s City LE EL293',
+    '3531': 'MAN A78 Lion\'s City LE EL293',
+    '3532': 'MAN A78 Lion\'s City LE EL293',
+    '3533': 'Solaris Urbino IV 12 CNG',
+    '3534': 'Solaris Urbino IV 12 CNG',
+    '3535': 'MAN A78 Lion\'s City LE EL293',
+    '3536': 'Solaris Urbino IV 18 CNG',
+    '3538': 'MAN A78 Lion\'s City LE EL293',
+    '3539': 'MAN A78 Lion\'s City LE EL293',
+    '3540': 'MAN A40 Lion\'s City GL NG323',
+    '3541': 'MAN A40 Lion\'s City GL NG323',
+    '3544': 'MAN A40 Lion\'s City GL NG323',
+    '3545': 'Solaris Urbino IV 12 CNG',
+    '3547': 'MAN A40 Lion\'s City GL NG323',
+    '3548': 'MAN A40 Lion\'s City GL NG323',
+    '3549': 'MAN A40 Lion\'s City GL NG323',
+    '3550': 'MAN A40 Lion\'s City GL NG323',
+    '3551': 'MAN A40 Lion\'s City GL NG323',
+    '3552': 'Solaris Urbino IV 12 CNG',
+    '3554': 'Solaris Urbino IV 12 CNG',
+    '3558': 'Solaris Urbino IV 12 CNG',
+    '3562': 'Solaris Urbino IV 12 CNG',
+    '3564': 'Solaris Urbino IV 18 CNG',
+    '3571': 'MAN A78 Lion\'s City LE EL293',
+    '3572': 'MAN A78 Lion\'s City LE EL293',
+    '3573': 'MAN A78 Lion\'s City LE EL293',
+    '3574': 'MAN A78 Lion\'s City LE EL293',
+    '3575': 'MAN A78 Lion\'s City LE EL293',
+    '3576': 'Solaris Urbino IV 12 CNG',
+    '3577': 'MAN A78 Lion\'s City LE EL293',
+    '3578': 'Solaris Urbino IV 12 CNG',
+    '3579': 'MAN A40 Lion\'s City GL NG323',
+    '3581': 'MAN A40 Lion\'s City GL NG323',
+    '3582': 'MAN A40 Lion\'s City GL NG323',
+    '3583': 'MAN A40 Lion\'s City GL NG323',
+    '3584': 'MAN A40 Lion\'s City GL NG323',
+    '3585': 'MAN A21 Lion\'s City NL283',
+    '3586': 'MAN A21 Lion\'s City NL283',
+    '3588': 'Solaris Urbino IV 12 CNG',
+    '3593': 'Solaris Urbino IV 12 CNG',
+    '3594': 'Solaris Urbino IV 12 CNG',
+    '3619': 'Solaris Urbino IV 12 CNG',
+    '3625': 'Solaris Urbino IV 18 CNG',
+    '3627': 'Solaris Urbino IV 18 CNG',
+    '3644': 'Solaris Urbino IV 18 CNG',
+    '3670': 'Solaris Urbino IV 12 CNG',
+    '3702': 'Solaris Urbino IV 18 CNG',
+    '3703': 'Solaris Urbino IV 18 CNG',
+    '3715': 'Solaris Urbino IV 12 CNG',
+    '3762': 'Solaris Urbino IV 18 CNG',
+    '3763': 'Solaris Urbino IV 12 CNG',
+    '3779': 'Solaris Urbino IV 12 CNG',
+    '3780': 'Solaris Urbino IV 12 CNG',
+    '3781': 'Solaris Urbino IV 12 CNG',
+    '3790': 'Solaris Urbino IV 12 CNG',
+    '3792': 'Solaris Urbino IV 18 CNG',
+    '3794': 'Solaris Urbino IV 12 CNG',
+    '3810': 'Solaris Urbino IV 12 CNG',
+    '3898': 'Solaris Urbino IV 12 CNG',
+    '3920': 'Solaris Urbino IV 18 CNG',
+    '3929': 'Solaris Urbino IV 18 CNG',
+    '3999': 'Solaris Urbino IV 18 CNG',
+    '5057': 'BMC Procity II 12 CNG',
+
+    // ---- TROLLID ----
+    '345': 'Solaris Trollino III 12 AC',
+    '446': 'Solaris Trollino III 18 AC',
+    '6347': 'Škoda 32tr',
+    '6348': 'Škoda 32tr',
+    '6349': 'Škoda 32tr',
+    '6350': 'Škoda 32tr',
+    '6351': 'Škoda 32tr',
+    '6352': 'Škoda 32tr',
+    '6353': 'Škoda 32tr',
+    '6354': 'Škoda 32tr',
+    '6355': 'Škoda 32tr',
+    '6356': 'Škoda 32tr',
+    '6357': 'Škoda 32tr',
+    '6358': 'Škoda 32tr',
+    '6359': 'Škoda 32tr',
+    '6360': 'Škoda 32tr',
+    '6361': 'Škoda 32tr',
+    '6362': 'Škoda 32tr',
+    '6363': 'Škoda 32tr',
+    '6364': 'Škoda 32tr',
+    '6455': 'Škoda 33tr',
+    '6462': 'Škoda 33tr',
+    '6471': 'Škoda 33tr',
+
+    // ---- TRAMMID ----
+    '51': 'Tatra KT4SU',
+    '96': 'Tatra KT6TM',
+    '97': 'Tatra KT6TM',
+    '98': 'Tatra KT6TM',
+    '99': 'Tatra KT6TM',
+    '102': 'Tatra KT6TM',
+    '103': 'Tatra KT6TM',
+    '104': 'Tatra KT4SU',
+    '107': 'Tatra KT4SU',
+    '109': 'Tatra KT6TM',
+    '110': 'Tatra KT6TM',
+    '114': 'Tatra KT6TM',
+    '123': 'Tatra KT6TM',
+    '131': 'Tatra KT6TM',
+    '136': 'Tatra KT4TMR',
+    '138': 'Tatra KT4TMR',
+    '140': 'Tatra KT4TMR',
+    '141': 'Tatra KT4TMR',
+    '142': 'Tatra KT4TMR',
+    '148': 'Tatra KT6TM',
+    '157': 'Tatra KT4D',
+    '168': 'Tatra KT4TMR',
+    '177': 'Tatra KT4D',
+    '178': 'Tatra KT4D',
+    '181': 'Tatra KT4TM',
+    '182': 'Tatra KT4TM',
+    '501': 'CAF Urbos AXL',
+    '502': 'CAF Urbos AXL',
+    '503': 'CAF Urbos AXL',
+    '504': 'CAF Urbos AXL',
+    '505': 'CAF Urbos AXL',
+    '506': 'CAF Urbos AXL',
+    '507': 'CAF Urbos AXL',
+    '508': 'CAF Urbos AXL',
+    '509': 'CAF Urbos AXL',
+    '510': 'CAF Urbos AXL',
+    '511': 'CAF Urbos AXL',
+    '512': 'CAF Urbos AXL',
+    '513': 'CAF Urbos AXL',
+    '514': 'CAF Urbos AXL',
+    '515': 'CAF Urbos AXL',
+    '516': 'CAF Urbos AXL',
+    '517': 'CAF Urbos AXL',
+    '518': 'CAF Urbos AXL',
+    '519': 'CAF Urbos AXL',
+    '520': 'CAF Urbos AXL',
+    '521': 'PESA Twist 147N',
+    '522': 'PESA Twist 147N',
+    '523': 'PESA Twist 147N',
+    '524': 'PESA Twist 147N',
+    '525': 'PESA Twist 147N',
+    '526': 'PESA Twist 147N',
+    '527': 'PESA Twist 147N',
+    '528': 'PESA Twist 147N',
+    '529': 'PESA Twist 147N',
+    '530': 'PESA Twist 147N',
+    '531': 'PESA Twist 147N',
+    '532': 'PESA Twist 147N',
+    '533': 'PESA Twist 147N',
+    '534': 'PESA Twist 147N',
+    '535': 'PESA Twist 147N',
+    '536': 'PESA Twist 147N',
+    '537': 'PESA Twist 147N',
+    '538': 'PESA Twist 147N',
+    '539': 'PESA Twist 147N',
+    '540': 'PESA Twist 147N',
+    '541': 'PESA Twist 147N',
+    '542': 'PESA Twist 147N',
+    '543': 'PESA Twist 147N',
+
+  };
+
+
+  // ---------- Map setup ----------
+  var map = L.map('map', { zoomControl: true, attributionControl: true, preferCanvas: true })
+    .setView([59.4372, 24.7454], 12);
+
+  // maxNativeZoom capped below maxZoom: past that level Leaflet upscales the last real tile
+  // instead of loading a hyper-detailed one, so roads stay chunky/visible instead of hairline-thin,
+  // which also masks GPS jitter better at high zoom.
+  var darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    attribution: '&copy; OpenStreetMap &copy; CARTO &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
+  });
+
+  var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 20,
+    maxNativeZoom: 18,
+    attribution: '&copy; Esri &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
+  });
+
+  satelliteLayer.addTo(map);
+  var satelliteOn = true;
+
+  // ---------- State ----------
+  var vehicles = {}; // id -> { marker, data, lat, lon, heading, animFrame }
+  var filters = { reg: '', line: '', types: { '1': true, '2': true, '3': true, '7': true }, models: new Set() };
+  var workingSourceIndex = 0;
+
+  function shapeSVG(color, hasHeading) {
+    if (!hasHeading) {
+      return '<svg width="16" height="16" viewBox="0 0 16 16">' +
+             '<circle cx="8" cy="8" r="6" fill="' + color + '" stroke="#0a0c10" stroke-width="1.5"/>' +
+             '</svg>';
+    }
+    // Rounded teardrop / arrow shape pointing "up" (north), rotated via wrapper transform
+    return '<svg width="22" height="22" viewBox="0 0 22 22">' +
+           '<path d="M11 2 C11 2 4.5 11.5 4.5 14.8 C4.5 18.5 7.4 20.5 11 20.5 C14.6 20.5 17.5 18.5 17.5 14.8 C17.5 11.5 11 2 11 2 Z" ' +
+           'fill="' + color + '" stroke="#0a0c10" stroke-width="1.4" stroke-linejoin="round"/>' +
+           '</svg>';
+  }
+
+  function makeIcon(color, heading) {
+    var hasHeading = (heading !== null && heading !== 999 && !isNaN(heading));
+    var rot = hasHeading ? heading : 0;
+    var html = '<div class="veh-shape" style="transform:rotate(' + rot + 'deg);">' + shapeSVG(color, hasHeading) + '</div>';
+    return L.divIcon({
+      className: 'veh-icon',
+      html: html,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
+  }
+
+  function angleLerpTarget(oldDeg, newDeg) {
+    var d = ((newDeg - oldDeg + 540) % 360) - 180;
+    return oldDeg + d;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function popupHTML(d) {
+    var color = COLORS[d.type] || '#999';
+    var name = TYPE_NAMES[d.type] || 'Sõiduk';
+    var dest = d.destination && d.destination.trim() !== '' ? d.destination.trim() : '—';
+    var model = d.model || 'Teadmata';
+    var img = '';
+    if (model !== 'Teadmata') {
+      var imgSrc = 'Pildid/' + encodeURIComponent(model) + '.png';
+      img = '<img class="veh-photo" src="' + imgSrc + '" alt="' + escapeHtml(model) + '" ' +
+            'onerror="this.style.display=\'none\'">';
+    }
+    return '' +
+      img +
+      '<div class="popup-title"><span class="dot" style="background:' + color + '"></span>' + name + ' &middot; liin ' + d.line + '</div>' +
+      '<div class="popup-row"><span>Mudel</span><b>' + escapeHtml(model) + '</b></div>' +
+      '<div class="popup-row"><span>Suund / lõpp-peatus</span><b>' + escapeHtml(dest) + '</b></div>' +
+      '<div class="popup-row"><span>Registrinumber</span><b>' + escapeHtml(d.reg) + '</b></div>';
+  }
+
+  function passesFilter(d) {
+    if (!filters.types[d.type]) return false;
+    if (filters.reg && d.reg.toLowerCase() !== filters.reg) return false;
+    if (filters.line && d.line.toLowerCase() !== filters.line) return false;
+    if (filters.models.size > 0 && !filters.models.has(d.model)) return false;
+    return true;
+  }
+
+  function animateMarker(entry, fromLat, fromLon, toLat, toLon, fromHeading, toHeadingTarget) {
+    if (entry.animFrame) cancelAnimationFrame(entry.animFrame);
+    var start = null;
+    function step(ts) {
+      if (!start) start = ts;
+      var t = Math.min(1, (ts - start) / ANIM_MS);
+      var ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      var lat = fromLat + (toLat - fromLat) * ease;
+      var lon = fromLon + (toLon - fromLon) * ease;
+      entry.marker.setLatLng([lat, lon]);
+      if (fromHeading !== null && toHeadingTarget !== null) {
+        var heading = fromHeading + (toHeadingTarget - fromHeading) * ease;
+        var el = entry.marker.getElement();
+        if (el) {
+          var shape = el.querySelector('.veh-shape');
+          if (shape) shape.style.transform = 'rotate(' + heading + 'deg)';
+        }
+      }
+      if (t < 1) {
+        entry.animFrame = requestAnimationFrame(step);
+      }
+    }
+    entry.animFrame = requestAnimationFrame(step);
+  }
+
+  function upsertVehicle(d) {
+    var id = d.reg;
+    var visible = passesFilter(d);
+    var existing = vehicles[id];
+
+    if (!existing) {
+      var icon = makeIcon(COLORS[d.type] || '#999', d.headingNum);
+      var marker = L.marker([d.lat, d.lon], { icon: icon, riseOnHover: true });
+      marker.bindPopup(popupHTML(d));
+      if (visible) marker.addTo(map);
+      vehicles[id] = {
+        marker: marker,
+        data: d,
+        lat: d.lat, lon: d.lon,
+        headingDeg: (d.headingNum !== null && d.headingNum !== 999) ? d.headingNum : 0,
+        animFrame: null
+      };
+      return;
+    }
+
+    // update data + popup content
+    existing.data = d;
+    if (existing.marker.isPopupOpen()) {
+      existing.marker.setPopupContent(popupHTML(d));
+    } else {
+      existing.marker.getPopup() && existing.marker.setPopupContent(popupHTML(d));
+    }
+
+    var wasVisible = map.hasLayer(existing.marker);
+    if (visible && !wasVisible) existing.marker.addTo(map);
+    if (!visible && wasVisible) map.removeLayer(existing.marker);
+
+    var hasHeading = (d.headingNum !== null && d.headingNum !== 999 && !isNaN(d.headingNum));
+    var targetHeading = hasHeading ? angleLerpTarget(existing.headingDeg, d.headingNum) : existing.headingDeg;
+
+    if (visible) {
+      animateMarker(existing, existing.lat, existing.lon, d.lat, d.lon, existing.headingDeg, targetHeading);
+    } else {
+      existing.marker.setLatLng([d.lat, d.lon]);
+    }
+
+    existing.lat = d.lat;
+    existing.lon = d.lon;
+    existing.headingDeg = ((targetHeading % 360) + 360) % 360;
+  }
+
+  function pruneMissing(seenIds) {
+    for (var id in vehicles) {
+      if (!seenIds[id]) {
+        var v = vehicles[id];
+        if (v.animFrame) cancelAnimationFrame(v.animFrame);
+        map.removeLayer(v.marker);
+        delete vehicles[id];
+      }
+    }
+  }
+
+  function reapplyAllFilters() {
+    for (var id in vehicles) {
+      var v = vehicles[id];
+      var visible = passesFilter(v.data);
+      var isOn = map.hasLayer(v.marker);
+      if (visible && !isOn) v.marker.addTo(map);
+      if (!visible && isOn) map.removeLayer(v.marker);
+    }
+  }
+
+  // ---------- Parsing ----------
+  function parseGPS(text) {
+    var lines = text.split('\n');
+    var seen = {};
+    var counts = { '1': 0, '2': 0, '3': 0, '7': 0 };
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      var parts = line.split(',');
+      if (parts.length < 9) continue;
+
+      var type = parts[0].trim();
+      if (!COLORS[type]) continue;
+
+      var lineNum = parts[1].trim();
+      var lonRaw = parseFloat(parts[2]);
+      var latRaw = parseFloat(parts[3]);
+      if (isNaN(lonRaw) || isNaN(latRaw) || lonRaw === 0 || latRaw === 0) continue;
+      var lon = lonRaw / 1000000;
+      var lat = latRaw / 1000000;
+      var speed = parts[4].trim();
+      var headingNum = parseInt(parts[5], 10);
+      var reg = parts[6].trim();
+      var destination = parts.length > 9 ? parts.slice(9).join(',').trim() : '';
+
+      if (!reg) continue;
+
+      var d = {
+        type: type, line: lineNum, lat: lat, lon: lon,
+        speed: speed, headingNum: isNaN(headingNum) ? null : headingNum,
+        reg: reg, destination: destination,
+        model: VEHICLE_MODELS[reg] || 'Teadmata'
+      };
+
+      seen[reg] = true;
+      counts[type]++;
+      upsertVehicle(d);
+    }
+    pruneMissing(seen);
+    return counts;
+  }
+
+  // ---------- Fetching ----------
+  var statusDot = document.getElementById('statusDot');
+  var statusText = document.getElementById('statusText');
+  var errorBanner = document.getElementById('errorBanner');
+
+  function setStatus(kind, msg) {
+    statusDot.className = kind;
+    statusText.textContent = msg;
+  }
+
+  function isValidGPSText(text) {
+    if (!text) return false;
+    var lines = text.split('\n');
+    var valid = 0;
+    for (var i = 0; i < lines.length && i < 60; i++) {
+      var l = lines[i].trim();
+      if (!l) continue;
+      // type,line,lon(6-8 digits),lat(6-8 digits), ...
+      if (/^\d,[^,]*,\d{6,9},\d{6,9},/.test(l)) valid++;
+    }
+    return valid >= 5;
+  }
+
+  async function fetchWithTimeout(url, ms) {
+    var controller = new AbortController();
+    var timer = setTimeout(function(){ controller.abort(); }, ms);
+    try {
+      var res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      return res;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  async function tryFetchSource(idx) {
+    var res = await fetchWithTimeout(SOURCES[idx], FETCH_TIMEOUT_MS);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var text = await res.text();
+    if (!isValidGPSText(text)) throw new Error('Vale vormingus vastus');
+    return text;
+  }
+
+  async function fetchGPSText() {
+    var order = [workingSourceIndex].concat(SOURCES.map(function(_, i){return i;}).filter(function(i){return i !== workingSourceIndex;}));
+    var lastErr = null;
+    for (var k = 0; k < order.length; k++) {
+      var idx = order[k];
+      var attempts = (idx === workingSourceIndex) ? (1 + SAME_SOURCE_RETRIES) : 1;
+      for (var a = 0; a < attempts; a++) {
+        try {
+          var text = await tryFetchSource(idx);
+          workingSourceIndex = idx;
+          return text;
+        } catch (e) {
+          lastErr = e;
+          if (a < attempts - 1) await sleep(SAME_SOURCE_RETRY_DELAY_MS);
+        }
+      }
+    }
+    throw lastErr || new Error('Andmeid ei õnnestunud laadida');
+  }
+
+  var pollCount = 0;
+  async function poll() {
+    setStatus('pending', 'Uuendan…');
+    try {
+      var text = await fetchGPSText();
+      var counts = parseGPS(text);
+      errorBanner.style.display = 'none';
+      pollCount++;
+      var total = counts['1'] + counts['2'] + counts['3'] + counts['7'];
+      var now = new Date();
+      var hh = String(now.getHours()).padStart(2,'0');
+      var mm = String(now.getMinutes()).padStart(2,'0');
+      var ss = String(now.getSeconds()).padStart(2,'0');
+      setStatus('ok', total + ' sõidukit \u00b7 ' + hh + ':' + mm + ':' + ss);
+    } catch (e) {
+      setStatus('bad', 'Ühendus ebaõnnestus');
+      errorBanner.style.display = 'block';
+      errorBanner.textContent = OWN_PROXY_URL
+        ? 'Ei õnnestunud laadida andmeid ka enda proxy kaudu. Kontrolli, kas Worker on üleval ja URL õige.'
+        : 'Avalikud vaheserverid on hetkel ülekoormatud. Proovin uuesti automaatselt — stabiilseima tulemuse saad oma Cloudflare Worker proxyga (vt worker.js).';
+    }
+    setTimeout(poll, POLL_MS);
+  }
+
+  // ---------- Filter UI wiring ----------
+  var regInput = document.getElementById('regInput');
+  var lineInput = document.getElementById('lineInput');
+
+  regInput.addEventListener('input', function() {
+    filters.reg = regInput.value.trim().toLowerCase();
+    reapplyAllFilters();
+  });
+  lineInput.addEventListener('input', function() {
+    filters.line = lineInput.value.trim().toLowerCase();
+    reapplyAllFilters();
+  });
+
+  function wireChip(chipId, typeKey) {
+    var chip = document.getElementById(chipId);
+    var box = chip.querySelector('input');
+    chip.addEventListener('click', function(e) {
+      e.preventDefault();
+      box.checked = !box.checked;
+      filters.types[typeKey] = box.checked;
+      chip.classList.toggle('off', !box.checked);
+      reapplyAllFilters();
+    });
+  }
+  wireChip('chipTroll', '1');
+  wireChip('chipBus', '2');
+  wireChip('chipNight', '7');
+  wireChip('chipTram', '3');
+
+  document.getElementById('showAllBtn').addEventListener('click', showAll);
+  document.getElementById('mapModeBtn').addEventListener('click', function() {
+    satelliteOn = !satelliteOn;
+    var mapEl = document.getElementById('map');
+    var btn = document.getElementById('mapModeBtn');
+    if (satelliteOn) {
+      map.removeLayer(darkLayer);
+      satelliteLayer.addTo(map);
+      mapEl.classList.remove('dark-mode');
+      btn.textContent = '🛰️ Satelliitvaade';
+    } else {
+      map.removeLayer(satelliteLayer);
+      darkLayer.addTo(map);
+      mapEl.classList.add('dark-mode');
+      btn.textContent = '🌑 Puhas režiim';
+    }
+  });
+  document.getElementById('resetBtn').addEventListener('click', function() {
+    regInput.value = '';
+    lineInput.value = '';
+    filters.reg = '';
+    filters.line = '';
+    clearModelSelection();
+    reapplyAllFilters();
+  });
+
+  function showAll() {
+    regInput.value = '';
+    lineInput.value = '';
+    filters.reg = '';
+    filters.line = '';
+    filters.types = { '1': true, '2': true, '3': true, '7': true };
+    ['chipTroll','chipBus','chipNight','chipTram'].forEach(function(id){
+      var chip = document.getElementById(id);
+      chip.querySelector('input').checked = true;
+      chip.classList.remove('off');
+    });
+    clearModelSelection();
+    reapplyAllFilters();
+  }
+
+  // ---------- Mudeli filtri dropdown ----------
+  var modelDropdown = document.getElementById('modelDropdown');
+  var modelFilterBtn = document.getElementById('modelFilterBtn');
+
+  (function buildModelDropdown() {
+    var html = '';
+    MODEL_CATALOG.forEach(function(group) {
+      html += '<div class="group-title">' + escapeHtml(group.group) + '</div>';
+      group.models.forEach(function(model) {
+        var mid = 'mdl_' + model.replace(/[^a-zA-Z0-9]/g, '_');
+        html += '<label><input type="checkbox" data-model="' + escapeHtml(model) + '" id="' + mid + '">' + escapeHtml(model) + '</label>';
+      });
+    });
+    html += '<div class="clear-models" id="clearModelsBtn">Puhasta mudelivalik</div>';
+    modelDropdown.innerHTML = html;
+
+    modelDropdown.querySelectorAll('input[data-model]').forEach(function(box) {
+      box.addEventListener('change', function() {
+        var model = box.getAttribute('data-model');
+        if (box.checked) filters.models.add(model);
+        else filters.models.delete(model);
+        updateModelButtonLabel();
+        reapplyAllFilters();
+      });
+    });
+    document.getElementById('clearModelsBtn').addEventListener('click', function() {
+      clearModelSelection();
+      reapplyAllFilters();
+    });
+  })();
+
+  function clearModelSelection() {
+    filters.models.clear();
+    modelDropdown.querySelectorAll('input[data-model]').forEach(function(box){ box.checked = false; });
+    updateModelButtonLabel();
+  }
+
+  function updateModelButtonLabel() {
+    var n = filters.models.size;
+    modelFilterBtn.textContent = (n > 0 ? ('Mudel (' + n + ') ▾') : 'Mudel ▾');
+    modelFilterBtn.classList.toggle('active-filter', n > 0);
+  }
+
+  modelFilterBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    modelDropdown.classList.toggle('open');
+  });
+  document.addEventListener('click', function(e) {
+    if (!modelDropdown.contains(e.target) && e.target !== modelFilterBtn) {
+      modelDropdown.classList.remove('open');
+    }
+  });
+  modelDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+
+  // ---------- Mobiilivaates vii "Mudel/Puhasta otsing/Kuva kõik" paneelist välja ----------
+  // #panel kasutab backdrop-filter'it, mis CSS spec'i järgi tekitab uue containing block'i
+  // position:fixed lastele — nii jääks nupugrupp "fixed" siiski paneeli, mitte ekraani suhtes.
+  // Lihtsaim usaldusväärne lahendus: liigutame elemendi DOM-is füüsiliselt paneelist välja.
+  (function setupSecondaryControlsRelocation() {
+    var secCtrl = document.getElementById('secondaryControls');
+    var anchor = document.createComment('secondaryControls-anchor');
+    secCtrl.parentNode.insertBefore(anchor, secCtrl);
+    var mq = window.matchMedia('(max-width: 720px)');
+
+    function relocate() {
+      if (mq.matches) {
+        if (secCtrl.parentNode !== document.body) document.body.appendChild(secCtrl);
+      } else {
+        if (secCtrl.parentNode !== anchor.parentNode) anchor.parentNode.insertBefore(secCtrl, anchor.nextSibling);
+      }
+    }
+    relocate();
+    if (mq.addEventListener) mq.addEventListener('change', relocate);
+    else mq.addListener(relocate); // Safari legacy fallback
+  })();
+
+  // Initial state: show all vehicles on load
+  showAll();
+  poll();
+
+})();
+</script>
+</body>
+</html>
