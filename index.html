@@ -364,6 +364,13 @@
   var POLL_MS = 6000;
   var ANIM_MS = 5500;
 
+  // Sellest suumitasemest ALLPOOL (nt kogu linna ülevaade) näidatakse kõiki sõidukeid
+  // korraga, kuid ILMA liikumisanimatsioonita — nii kaugelt vaadates pole animatsiooni
+  // niikuinii näha, aga see nõuab siiski arvutust igal kaadril, mis tekitab mobiilis
+  // läkatust just suumimise ajal. Sellest tasemest ALATES (korralikult sisse suumitud)
+  // kuvatakse ainult parajasti nähtaval alal olevad sõidukid ja NEED animeeritakse.
+  var ZOOM_DETAIL_THRESHOLD = 15;
+
   var COLORS = { '1': '#0060d3', '2': '#00e2b6', '3': '#ff5f26', '7': '#7a5cff' };
   var TYPE_NAMES = { '1': 'Trollibuss', '2': 'Buss', '3': 'Tramm', '7': 'Ööbuss' };
 
@@ -1124,6 +1131,10 @@
   });
   map.on('zoomend', function() {
     if (markerPane) markerPane.style.visibility = 'visible';
+    reapplyAllFilters();
+  });
+  map.on('moveend', function() {
+    reapplyAllFilters();
   });
 
   // ---------- State ----------
@@ -1190,6 +1201,21 @@
     if (filters.line && d.line.toLowerCase() !== filters.line) return false;
     if (filters.models.size > 0 && !filters.models.has(d.model)) return false;
     return true;
+  }
+
+  // Kas sõiduk peaks praegu ekraanil olema: peale tavafiltrite peab ta sisse-suumitud
+  // olekus jääma ka praeguse vaateala (+ väike puhver) piiresse. Väljas-suumitud
+  // (ülevaate) režiimis puhvrit/piirangut ei rakendata — siis on eesmärk näidata kõiki.
+  var viewportPadded = null; // vahemällu, uuendatakse move/zoom korral
+  function refreshViewportCache() {
+    viewportPadded = map.getBounds().pad(0.25);
+  }
+
+  function shouldRender(d) {
+    if (!passesFilter(d)) return false;
+    if (map.getZoom() < ZOOM_DETAIL_THRESHOLD) return true;
+    if (!viewportPadded) refreshViewportCache();
+    return viewportPadded.contains([d.lat, d.lon]);
   }
 
   // ---------- Shared animation loop ----------
@@ -1264,7 +1290,7 @@
 
   function upsertVehicle(d) {
     var id = d.reg;
-    var visible = passesFilter(d);
+    var visible = shouldRender(d);
     var existing = vehicles[id];
 
     if (!existing) {
@@ -1297,10 +1323,18 @@
     var hasHeading = (d.headingNum !== null && d.headingNum !== 999 && !isNaN(d.headingNum));
     var targetHeading = hasHeading ? angleLerpTarget(existing.headingDeg, d.headingNum) : existing.headingDeg;
 
-    if (visible) {
+    // Animatsiooni käivitame ainult siis, kui ollakse korralikult sisse suumitud —
+    // kaugelt (ülevaates) pole liikumist niikuinii näha, aga selle arvutamine iga
+    // kaadri kohta koormaks peavoogu asjatult just siis, kui kõik sõidukid on korraga näha.
+    var animate = visible && (map.getZoom() >= ZOOM_DETAIL_THRESHOLD);
+
+    if (animate) {
       animateMarker(existing, existing.lat, existing.lon, d.lat, d.lon, existing.headingDeg, targetHeading);
     } else {
       existing.marker.setLatLng([d.lat, d.lon]);
+      var el = existing.marker.getElement();
+      var shapeEl = el ? el.querySelector('.veh-shape') : null;
+      if (shapeEl && targetHeading !== null) shapeEl.style.transform = 'rotate(' + targetHeading + 'deg)';
     }
 
     existing.lat = d.lat;
@@ -1320,9 +1354,10 @@
   }
 
   function reapplyAllFilters() {
+    refreshViewportCache();
     for (var id in vehicles) {
       var v = vehicles[id];
-      var visible = passesFilter(v.data);
+      var visible = shouldRender(v.data);
       var isOn = map.hasLayer(v.marker);
       if (visible && !isOn) v.marker.addTo(map);
       if (!visible && isOn) map.removeLayer(v.marker);
