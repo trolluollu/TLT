@@ -1102,11 +1102,29 @@
   satelliteLayer.addTo(map);
   var satelliteOn = true;
 
-  // Peavoo koormuse vähendamiseks zoomimise ajal: peata kõik käimasolevad
-  // sõidukite liikumisanimatsioonid koheselt zoomi alguses (vt snapAllAnimationsToFinal
-  // allpool). Nii ei arvuta brauser zoomimise hetkel korraga nii kaardi enda
-  // ümberprojitseerimist kui ka sadade sõidukite asukoha interpoleerimist.
-  map.on('zoomstart', function() { snapAllAnimationsToFinal(); });
+  // Peavoo/GPU koormuse vähendamiseks zoomimise ajal (eriti oluline mobiilis,
+  // kus puuteekraani pigistus-zoom nõuab pidevat, reaalajas ümberskaleerimist,
+  // erinevalt ühe sõrmega liigutamisest, mis lihtsalt nihutab olemasolevat pilti):
+  //
+  // 1) Peatame kohe kõik käimasolevad sõidukite liikumisanimatsioonid
+  //    (vt snapAllAnimationsToFinal allpool), et need ei arvutaks asukohti
+  //    samal ajal, kui kaart end ümber skaleerib.
+  // 2) Peidame kogu sõidukimarkerite kihi ("markerPane") pigistuse ajaks.
+  //    Sadu eraldi markeri-DOM-elementi (igaühel oma transform + drop-shadow
+  //    varjuefekt) tuleks muidu iga sõrmeliigutuse kaadri kohta uuesti
+  //    rasteriseerida — just see skaleerimise, mitte nihutamise, kulu ongi
+  //    nõrgema mobiiliriistvara jaoks üle jõu käiv. Kui markerid on
+  //    zoomimise ajaks nähtamatud, pole brauseril midagi ümber skaleerida
+  //    ning kaardi enda (teede/taustakihi) pigistus jääb sujuvaks. Markerid
+  //    ilmuvad kohe tagasi, kui zoom lõpeb.
+  var markerPane = map.getPane('markerPane');
+  map.on('zoomstart', function() {
+    snapAllAnimationsToFinal();
+    if (markerPane) markerPane.style.visibility = 'hidden';
+  });
+  map.on('zoomend', function() {
+    if (markerPane) markerPane.style.visibility = 'visible';
+  });
 
   // ---------- State ----------
   var vehicles = {}; // id -> { marker, data, lat, lon, headingDeg, animState }
