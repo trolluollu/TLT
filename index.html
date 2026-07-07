@@ -1449,7 +1449,7 @@
       setStatus('bad', 'Ühendus ebaõnnestus');
       errorBanner.style.display = 'block';
       errorBanner.textContent = OWN_PROXY_URL
-        ? 'Ei õnnestunud laadida andmeid ka enda proxy kaudu. Kontrolli, kas Worker on üleval ja URL õige.'
+        ? 'ERROR: Ei õnnestunud andmeid laadida, kirjuta Oliverile.'
         : 'Avalikud vaheserverid on hetkel ülekoormatud. Proovin uuesti automaatselt — stabiilseima tulemuse saad oma Cloudflare Worker proxyga (vt worker.js).';
     }
     setTimeout(poll, POLL_MS);
