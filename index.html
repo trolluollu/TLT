@@ -364,6 +364,81 @@
   var POLL_MS = 6000;
   var ANIM_MS = 5500;
 
+  // ---------- Jõudluse tuvastus ja automaatne optimeerimine ----------
+  // Kui brauser hakkab läägama (madal FPS), lülitume järk-järgult kergemasse režiimi:
+  //   tase 0: kõik tavapärane (sujuv liikumisanimatsioon, tavaline uuendussagedus)
+  //   tase 1: sujuv liikumisanimatsioon välja lülitatud (sõidukid "hüppavad" otse uude asukohta)
+  //   tase 2: lisaks pikendatud andmete uuendamise intervall
+  // Kui jõudlus taastub ja püsib hea piisavalt kaua, liigume tasemetes tagasi alla.
+  var PERF_LAG_MS = 45;           // keskmine kaadrisamm sellest üle ~ "läägab" (allapoole ca 22 fps)
+  var PERF_GOOD_MS = 20;          // keskmine kaadrisamm sellest alla ~ "sujuv" (üle ca 50 fps)
+  var PERF_EMA_ALPHA = 0.12;      // libisev keskmine kaadriaegadele
+  var PERF_ESCALATE_AFTER_MS = 3000;  // kui läägab järjest nii kaua, tõsta optimeerimistaset
+  var PERF_RECOVER_AFTER_MS = 15000;  // kui on sujuv järjest nii kaua, langeta optimeerimistaset
+  var POLL_MS_DEGRADED = Math.round(POLL_MS * 2.5);
+
+  var animationEnabled = true;
+  var currentPollMs = POLL_MS;
+
+  var perf = {
+    emaFrameMs: 16.7,
+    level: 0,        // 0..2
+    badSince: null,
+    goodSince: null,
+    lastTs: null,
+    rafId: null
+  };
+
+  function applyPerfLevel(level) {
+    if (level === perf.level) return;
+    perf.level = level;
+    animationEnabled = (level < 1);
+    currentPollMs = (level >= 2) ? POLL_MS_DEGRADED : POLL_MS;
+    updatePerfStatusSuffix();
+  }
+
+  function perfMonitorTick(ts) {
+    if (perf.lastTs !== null) {
+      var dt = ts - perf.lastTs;
+      // Ignoreeri hüppelisi vahesid (nt taust-tab, brauseri fookuse vahetus)
+      if (dt > 0 && dt < 2000) {
+        perf.emaFrameMs += PERF_EMA_ALPHA * (dt - perf.emaFrameMs);
+
+        if (perf.emaFrameMs > PERF_LAG_MS) {
+          if (!perf.badSince) perf.badSince = ts;
+          perf.goodSince = null;
+          if (perf.level < 2 && (ts - perf.badSince) > PERF_ESCALATE_AFTER_MS) {
+            applyPerfLevel(perf.level + 1);
+            perf.badSince = ts;
+          }
+        } else if (perf.emaFrameMs < PERF_GOOD_MS) {
+          if (!perf.goodSince) perf.goodSince = ts;
+          perf.badSince = null;
+          if (perf.level > 0 && (ts - perf.goodSince) > PERF_RECOVER_AFTER_MS) {
+            applyPerfLevel(perf.level - 1);
+            perf.goodSince = ts;
+          }
+        }
+      }
+    }
+    perf.lastTs = ts;
+    perf.rafId = requestAnimationFrame(perfMonitorTick);
+  }
+
+  function startPerfMonitor() {
+    if (perf.rafId) cancelAnimationFrame(perf.rafId);
+    perf.lastTs = null; // esimest kaadrisammu pärast taastumist ei arvestata
+    perf.rafId = requestAnimationFrame(perfMonitorTick);
+  }
+  function stopPerfMonitor() {
+    if (perf.rafId) cancelAnimationFrame(perf.rafId);
+    perf.rafId = null;
+  }
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) stopPerfMonitor(); else startPerfMonitor();
+  });
+  startPerfMonitor();
+
   var COLORS = { '1': '#0060d3', '2': '#00e2b6', '3': '#ff5f26', '7': '#7a5cff' };
   var TYPE_NAMES = { '1': 'Trollibuss', '2': 'Buss', '3': 'Tramm', '7': 'Ööbuss' };
 
@@ -1228,10 +1303,18 @@
     var hasHeading = (d.headingNum !== null && d.headingNum !== 999 && !isNaN(d.headingNum));
     var targetHeading = hasHeading ? angleLerpTarget(existing.headingDeg, d.headingNum) : existing.headingDeg;
 
-    if (visible) {
+    if (visible && animationEnabled) {
       animateMarker(existing, existing.lat, existing.lon, d.lat, d.lon, existing.headingDeg, targetHeading);
     } else {
+      if (existing.animFrame) { cancelAnimationFrame(existing.animFrame); existing.animFrame = null; }
       existing.marker.setLatLng([d.lat, d.lon]);
+      if (visible) {
+        var jumpEl = existing.marker.getElement();
+        if (jumpEl) {
+          var jumpShape = jumpEl.querySelector('.veh-shape');
+          if (jumpShape) jumpShape.style.transform = 'rotate(' + targetHeading + 'deg)';
+        }
+      }
     }
 
     existing.lat = d.lat;
@@ -1307,9 +1390,25 @@
   var statusText = document.getElementById('statusText');
   var errorBanner = document.getElementById('errorBanner');
 
+  var lastStatusMsg = '';
+  var lastStatusKind = 'pending';
+
   function setStatus(kind, msg) {
     statusDot.className = kind;
     statusText.textContent = msg;
+    lastStatusMsg = msg;
+    lastStatusKind = kind;
+  }
+
+  // Kui optimeerimistase muutub, lisame olekureale lühikese vihje (ei sega numbreid ega kella)
+  function updatePerfStatusSuffix() {
+    if (lastStatusKind !== 'ok') return; // ei puutu vea/laadimisteateid
+    var base = lastStatusMsg.replace(/\s*\u00b7\s*(optimeeritud|s\u00e4\u00e4stur\u00e9\u017eiim)$/i, '');
+    var suffix = '';
+    if (perf.level === 1) suffix = ' \u00b7 optimeeritud';
+    else if (perf.level >= 2) suffix = ' \u00b7 s\u00e4\u00e4stur\u00e9\u017eiim';
+    lastStatusMsg = base + suffix;
+    statusText.textContent = lastStatusMsg;
   }
 
   function isValidGPSText(text) {
@@ -1380,6 +1479,7 @@
       var mm = String(now.getMinutes()).padStart(2,'0');
       var ss = String(now.getSeconds()).padStart(2,'0');
       setStatus('ok', total + ' sõidukit \u00b7 ' + hh + ':' + mm + ':' + ss);
+      updatePerfStatusSuffix();
     } catch (e) {
       setStatus('bad', 'Ühendus ebaõnnestus');
       errorBanner.style.display = 'block';
@@ -1387,7 +1487,7 @@
         ? 'Ei õnnestunud laadida andmeid ka enda proxy kaudu. Kontrolli, kas Worker on üleval ja URL õige.'
         : 'Avalikud vaheserverid on hetkel ülekoormatud. Proovin uuesti automaatselt — stabiilseima tulemuse saad oma Cloudflare Worker proxyga (vt worker.js).';
     }
-    setTimeout(poll, POLL_MS);
+    setTimeout(poll, currentPollMs);
   }
 
   // ---------- Filter UI wiring ----------
