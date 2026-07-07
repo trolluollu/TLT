@@ -364,81 +364,6 @@
   var POLL_MS = 6000;
   var ANIM_MS = 5500;
 
-  // ---------- Jõudluse tuvastus ja automaatne optimeerimine ----------
-  // Kui brauser hakkab läägama (madal FPS), lülitume järk-järgult kergemasse režiimi:
-  //   tase 0: kõik tavapärane (sujuv liikumisanimatsioon, tavaline uuendussagedus)
-  //   tase 1: sujuv liikumisanimatsioon välja lülitatud (sõidukid "hüppavad" otse uude asukohta)
-  //   tase 2: lisaks pikendatud andmete uuendamise intervall
-  // Kui jõudlus taastub ja püsib hea piisavalt kaua, liigume tasemetes tagasi alla.
-  var PERF_LAG_MS = 45;           // keskmine kaadrisamm sellest üle ~ "läägab" (allapoole ca 22 fps)
-  var PERF_GOOD_MS = 20;          // keskmine kaadrisamm sellest alla ~ "sujuv" (üle ca 50 fps)
-  var PERF_EMA_ALPHA = 0.12;      // libisev keskmine kaadriaegadele
-  var PERF_ESCALATE_AFTER_MS = 3000;  // kui läägab järjest nii kaua, tõsta optimeerimistaset
-  var PERF_RECOVER_AFTER_MS = 15000;  // kui on sujuv järjest nii kaua, langeta optimeerimistaset
-  var POLL_MS_DEGRADED = Math.round(POLL_MS * 2.5);
-
-  var animationEnabled = true;
-  var currentPollMs = POLL_MS;
-
-  var perf = {
-    emaFrameMs: 16.7,
-    level: 0,        // 0..2
-    badSince: null,
-    goodSince: null,
-    lastTs: null,
-    rafId: null
-  };
-
-  function applyPerfLevel(level) {
-    if (level === perf.level) return;
-    perf.level = level;
-    animationEnabled = (level < 1);
-    currentPollMs = (level >= 2) ? POLL_MS_DEGRADED : POLL_MS;
-    updatePerfStatusSuffix();
-  }
-
-  function perfMonitorTick(ts) {
-    if (perf.lastTs !== null) {
-      var dt = ts - perf.lastTs;
-      // Ignoreeri hüppelisi vahesid (nt taust-tab, brauseri fookuse vahetus)
-      if (dt > 0 && dt < 2000) {
-        perf.emaFrameMs += PERF_EMA_ALPHA * (dt - perf.emaFrameMs);
-
-        if (perf.emaFrameMs > PERF_LAG_MS) {
-          if (!perf.badSince) perf.badSince = ts;
-          perf.goodSince = null;
-          if (perf.level < 2 && (ts - perf.badSince) > PERF_ESCALATE_AFTER_MS) {
-            applyPerfLevel(perf.level + 1);
-            perf.badSince = ts;
-          }
-        } else if (perf.emaFrameMs < PERF_GOOD_MS) {
-          if (!perf.goodSince) perf.goodSince = ts;
-          perf.badSince = null;
-          if (perf.level > 0 && (ts - perf.goodSince) > PERF_RECOVER_AFTER_MS) {
-            applyPerfLevel(perf.level - 1);
-            perf.goodSince = ts;
-          }
-        }
-      }
-    }
-    perf.lastTs = ts;
-    perf.rafId = requestAnimationFrame(perfMonitorTick);
-  }
-
-  function startPerfMonitor() {
-    if (perf.rafId) cancelAnimationFrame(perf.rafId);
-    perf.lastTs = null; // esimest kaadrisammu pärast taastumist ei arvestata
-    perf.rafId = requestAnimationFrame(perfMonitorTick);
-  }
-  function stopPerfMonitor() {
-    if (perf.rafId) cancelAnimationFrame(perf.rafId);
-    perf.rafId = null;
-  }
-  document.addEventListener('visibilitychange', function() {
-    if (document.hidden) stopPerfMonitor(); else startPerfMonitor();
-  });
-  startPerfMonitor();
-
   var COLORS = { '1': '#0060d3', '2': '#00e2b6', '3': '#ff5f26', '7': '#7a5cff' };
   var TYPE_NAMES = { '1': 'Trollibuss', '2': 'Buss', '3': 'Tramm', '7': 'Ööbuss' };
 
@@ -1177,8 +1102,14 @@
   satelliteLayer.addTo(map);
   var satelliteOn = true;
 
+  // Peavoo koormuse vähendamiseks zoomimise ajal: peata kõik käimasolevad
+  // sõidukite liikumisanimatsioonid koheselt zoomi alguses (vt snapAllAnimationsToFinal
+  // allpool). Nii ei arvuta brauser zoomimise hetkel korraga nii kaardi enda
+  // ümberprojitseerimist kui ka sadade sõidukite asukoha interpoleerimist.
+  map.on('zoomstart', function() { snapAllAnimationsToFinal(); });
+
   // ---------- State ----------
-  var vehicles = {}; // id -> { marker, data, lat, lon, heading, animFrame }
+  var vehicles = {}; // id -> { marker, data, lat, lon, headingDeg, animState }
   var filters = { reg: '', line: '', types: { '1': true, '2': true, '3': true, '7': true }, models: new Set() };
   var workingSourceIndex = 0;
 
@@ -1243,29 +1174,74 @@
     return true;
   }
 
-  function animateMarker(entry, fromLat, fromLon, toLat, toLon, fromHeading, toHeadingTarget) {
-    if (entry.animFrame) cancelAnimationFrame(entry.animFrame);
-    var start = null;
-    function step(ts) {
-      if (!start) start = ts;
-      var t = Math.min(1, (ts - start) / ANIM_MS);
+  // ---------- Shared animation loop ----------
+  // Varem sai iga sõiduk oma eraldi requestAnimationFrame-tsükli. Kuna korraga on
+  // liikvel sadu sõidukeid ja iga animatsioon kestab peaaegu kogu uuendustsükli
+  // (ANIM_MS lähedal POLL_MS-ile), jooksis peaaegu kogu aeg korraga sadu paralleelseid
+  // rAF-kutseid, millest igaüks tegi ka DOM-otsingu (querySelector) igal kaadril.
+  // See koormas peavoogu pidevalt ja jooksis kokku Leafleti enda zoom-ümberarvutusega,
+  // mis tekitaski tugeva läkatuse just zoomimise hetkel. Nüüd on kõigi sõidukite
+  // liikumine koondatud ÜHTE jagatud tsüklisse ning zoomi alguses peatatakse
+  // animatsioonid koheselt (sõidukid "hüppavad" oma sihtasukohta), et zoomiga
+  // ei konkureeriks samal ajal sadu liikumisarvutusi.
+  var activeEntries = new Set();
+  var tickHandle = null;
+
+  function scheduleTick() {
+    if (tickHandle === null) tickHandle = requestAnimationFrame(runAnimTick);
+  }
+
+  function runAnimTick(ts) {
+    tickHandle = null;
+    activeEntries.forEach(function(entry) {
+      var st = entry.animState;
+      if (!st) { activeEntries.delete(entry); return; }
+      if (!st.start) st.start = ts;
+      var t = Math.min(1, (ts - st.start) / ANIM_MS);
       var ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      var lat = fromLat + (toLat - fromLat) * ease;
-      var lon = fromLon + (toLon - fromLon) * ease;
+      var lat = st.fromLat + (st.toLat - st.fromLat) * ease;
+      var lon = st.fromLon + (st.toLon - st.fromLon) * ease;
       entry.marker.setLatLng([lat, lon]);
-      if (fromHeading !== null && toHeadingTarget !== null) {
-        var heading = fromHeading + (toHeadingTarget - fromHeading) * ease;
-        var el = entry.marker.getElement();
-        if (el) {
-          var shape = el.querySelector('.veh-shape');
-          if (shape) shape.style.transform = 'rotate(' + heading + 'deg)';
+      if (st.fromHeading !== null && st.toHeading !== null && st.shapeEl) {
+        var heading = st.fromHeading + (st.toHeading - st.fromHeading) * ease;
+        st.shapeEl.style.transform = 'rotate(' + heading + 'deg)';
+      }
+      if (t >= 1) {
+        entry.animState = null;
+        activeEntries.delete(entry);
+      }
+    });
+    if (activeEntries.size > 0) scheduleTick();
+  }
+
+  // Zoomi alguses: peata kohe kõik käimasolevad liikumisanimatsioonid ja
+  // vii sõidukid otse oma viimase teadaoleva sihtasukohani, et zoom ei peaks
+  // konkureerima sadade paralleelsete asukoha-arvutustega.
+  function snapAllAnimationsToFinal() {
+    activeEntries.forEach(function(entry) {
+      var st = entry.animState;
+      if (st) {
+        entry.marker.setLatLng([st.toLat, st.toLon]);
+        if (st.shapeEl && st.toHeading !== null) {
+          st.shapeEl.style.transform = 'rotate(' + st.toHeading + 'deg)';
         }
       }
-      if (t < 1) {
-        entry.animFrame = requestAnimationFrame(step);
-      }
-    }
-    entry.animFrame = requestAnimationFrame(step);
+      entry.animState = null;
+    });
+    activeEntries.clear();
+    if (tickHandle !== null) { cancelAnimationFrame(tickHandle); tickHandle = null; }
+  }
+
+  function animateMarker(entry, fromLat, fromLon, toLat, toLon, fromHeading, toHeadingTarget) {
+    var el = entry.marker.getElement();
+    var shapeEl = el ? el.querySelector('.veh-shape') : null;
+    entry.animState = {
+      fromLat: fromLat, fromLon: fromLon, toLat: toLat, toLon: toLon,
+      fromHeading: fromHeading, toHeading: toHeadingTarget,
+      start: null, shapeEl: shapeEl
+    };
+    activeEntries.add(entry);
+    scheduleTick();
   }
 
   function upsertVehicle(d) {
@@ -1283,7 +1259,7 @@
         data: d,
         lat: d.lat, lon: d.lon,
         headingDeg: (d.headingNum !== null && d.headingNum !== 999) ? d.headingNum : 0,
-        animFrame: null
+        animState: null
       };
       return;
     }
@@ -1303,18 +1279,10 @@
     var hasHeading = (d.headingNum !== null && d.headingNum !== 999 && !isNaN(d.headingNum));
     var targetHeading = hasHeading ? angleLerpTarget(existing.headingDeg, d.headingNum) : existing.headingDeg;
 
-    if (visible && animationEnabled) {
+    if (visible) {
       animateMarker(existing, existing.lat, existing.lon, d.lat, d.lon, existing.headingDeg, targetHeading);
     } else {
-      if (existing.animFrame) { cancelAnimationFrame(existing.animFrame); existing.animFrame = null; }
       existing.marker.setLatLng([d.lat, d.lon]);
-      if (visible) {
-        var jumpEl = existing.marker.getElement();
-        if (jumpEl) {
-          var jumpShape = jumpEl.querySelector('.veh-shape');
-          if (jumpShape) jumpShape.style.transform = 'rotate(' + targetHeading + 'deg)';
-        }
-      }
     }
 
     existing.lat = d.lat;
@@ -1326,7 +1294,7 @@
     for (var id in vehicles) {
       if (!seenIds[id]) {
         var v = vehicles[id];
-        if (v.animFrame) cancelAnimationFrame(v.animFrame);
+        if (v.animState) { activeEntries.delete(v); v.animState = null; }
         map.removeLayer(v.marker);
         delete vehicles[id];
       }
@@ -1390,25 +1358,9 @@
   var statusText = document.getElementById('statusText');
   var errorBanner = document.getElementById('errorBanner');
 
-  var lastStatusMsg = '';
-  var lastStatusKind = 'pending';
-
   function setStatus(kind, msg) {
     statusDot.className = kind;
     statusText.textContent = msg;
-    lastStatusMsg = msg;
-    lastStatusKind = kind;
-  }
-
-  // Kui optimeerimistase muutub, lisame olekureale lühikese vihje (ei sega numbreid ega kella)
-  function updatePerfStatusSuffix() {
-    if (lastStatusKind !== 'ok') return; // ei puutu vea/laadimisteateid
-    var base = lastStatusMsg.replace(/\s*\u00b7\s*(optimeeritud|s\u00e4\u00e4stur\u00e9\u017eiim)$/i, '');
-    var suffix = '';
-    if (perf.level === 1) suffix = ' \u00b7 optimeeritud';
-    else if (perf.level >= 2) suffix = ' \u00b7 s\u00e4\u00e4stur\u00e9\u017eiim';
-    lastStatusMsg = base + suffix;
-    statusText.textContent = lastStatusMsg;
   }
 
   function isValidGPSText(text) {
@@ -1479,7 +1431,6 @@
       var mm = String(now.getMinutes()).padStart(2,'0');
       var ss = String(now.getSeconds()).padStart(2,'0');
       setStatus('ok', total + ' sõidukit \u00b7 ' + hh + ':' + mm + ':' + ss);
-      updatePerfStatusSuffix();
     } catch (e) {
       setStatus('bad', 'Ühendus ebaõnnestus');
       errorBanner.style.display = 'block';
@@ -1487,7 +1438,7 @@
         ? 'Ei õnnestunud laadida andmeid ka enda proxy kaudu. Kontrolli, kas Worker on üleval ja URL õige.'
         : 'Avalikud vaheserverid on hetkel ülekoormatud. Proovin uuesti automaatselt — stabiilseima tulemuse saad oma Cloudflare Worker proxyga (vt worker.js).';
     }
-    setTimeout(poll, currentPollMs);
+    setTimeout(poll, POLL_MS);
   }
 
   // ---------- Filter UI wiring ----------
