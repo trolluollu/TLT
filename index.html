@@ -19,45 +19,38 @@
     --night: #7a5cff;
     --tram: #ff5f26;
     --accent: #e7eaee;
+    --glass-tint: rgba(255,255,255,0.06);
+    --glass-tint-strong: rgba(255,255,255,0.13);
+    --glass-border: rgba(255,255,255,0.32);
+    --glass-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,255,255,0.22);
   }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; height:100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   #map { position:absolute; inset:0; z-index:0; background: var(--bg); }
 
   #map.dark-mode .leaflet-tile-pane { filter: brightness(0.85) contrast(1.05); }
-  .leaflet-control-attribution {
-    background: rgba(10,12,16,0.7) !important;
-    color: var(--text-dim) !important;
-    font-size: 10px !important;
-  }
-  .leaflet-control-attribution a { color: var(--text-dim) !important; }
-  .leaflet-control-zoom a {
-    background: var(--panel) !important;
-    color: var(--text) !important;
-    border-color: var(--panel-border) !important;
-  }
-  .leaflet-control-zoom a:hover { background: #1a1f28 !important; }
 
   /* Top control panel */
   #panel {
     position:absolute; top:14px; left:14px; right:14px;
     z-index: 1000;
-    background: rgba(18,21,27,0.92);
-    border: 1px solid var(--panel-border);
-    border-radius: 14px;
+    background: var(--glass-tint);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
     padding: 12px 16px;
-    backdrop-filter: blur(10px);
     display:flex;
     flex-wrap: wrap;
     align-items:center;
     gap: 14px;
     font-size: 13px;
+    isolation: isolate;
+    box-shadow: var(--glass-shadow);
   }
   .brand {
     display:flex;
     align-items:center;
     padding-right: 12px;
-    border-right: 1px solid var(--panel-border);
+    border-right: 1px solid var(--glass-border);
     flex: none;
   }
   .brand #logoImg {
@@ -76,61 +69,69 @@
   .field { display:flex; flex-direction:column; gap:3px; }
   .field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
   .field input[type="text"] {
-    background: #0e1116;
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
+    background: rgba(0,0,0,0.22);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
     color: var(--text);
     padding: 6px 10px;
     font-size: 13px;
     width: 130px;
     outline: none;
+    transition: border-color .15s ease, background .15s ease;
   }
-  .field input[type="text"]:focus { border-color: #3a4150; }
-  .field input[type="text"]::placeholder { color: #545c6a; }
+  .field input[type="text"]:focus { border-color: rgba(0,226,182,0.6); background: rgba(0,0,0,0.32); }
+  .field input[type="text"]::placeholder { color: #9aa3b0; opacity: 0.7; }
 
   .types { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
   .chip {
     display:flex; align-items:center; gap:6px;
-    background:#0e1116; border:1px solid var(--panel-border);
+    background: var(--glass-tint); border:1px solid var(--glass-border);
     border-radius: 999px; padding: 6px 12px 6px 8px; cursor:pointer;
     user-select:none; font-size:12px; white-space:nowrap;
-    transition: border-color .15s ease, opacity .15s ease;
+    transition: border-color .15s ease, opacity .15s ease, background .15s ease;
+    isolation: isolate;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);
   }
   .chip input { display:none; }
   .chip .dot { width:9px; height:9px; border-radius:50%; flex:none; }
   .chip.off { opacity: 0.35; }
-  .chip:hover { border-color:#3a4150; }
+  .chip:hover { background: var(--glass-tint-strong); }
 
   #showAllBtn {
-    background: var(--text);
-    color: #0a0c10;
+    background: linear-gradient(135deg, var(--bus), var(--troll));
+    color: #04121c;
     border: none;
-    border-radius: 8px;
-    padding: 8px 14px;
+    border-radius: 100px;
+    padding: 8px 16px;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
+    box-shadow: 0 6px 18px rgba(0,226,182,0.25);
+    transition: transform .2s ease, box-shadow .2s ease;
   }
-  #showAllBtn:hover { opacity:0.85; }
+  #showAllBtn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,226,182,0.35); }
+  #showAllBtn:active { transform: translateY(0); }
 
   #mapModeBtn {
     position: absolute;
     right: 14px;
     bottom: 14px;
     z-index: 1000;
-    background: rgba(18,21,27,0.92);
+    background: var(--glass-tint);
     color: var(--text);
-    border: 1px solid var(--panel-border);
-    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
     padding: 9px 14px;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
-    backdrop-filter: blur(10px);
     white-space: nowrap;
+    isolation: isolate;
+    box-shadow: var(--glass-shadow);
+    transition: transform .2s ease, background .2s ease;
   }
-  #mapModeBtn:hover { border-color:#3a4150; background: rgba(24,28,36,0.95); }
+  #mapModeBtn:hover { background: var(--glass-tint-strong); transform: translateY(-1px); }
 
   .spacer { flex: 1 1 auto; }
 
@@ -148,14 +149,16 @@
 
   #errorBanner {
     position:absolute; top: 76px; left:14px; z-index:1000;
-    background: rgba(58, 16, 16, 0.92);
-    border:1px solid #6e2020;
+    background: rgba(120, 30, 30, 0.22);
+    border:1px solid rgba(255,120,120,0.4);
     color:#ffd5d5;
     padding:10px 14px;
-    border-radius: 10px;
+    border-radius: 16px;
     font-size: 12px;
     max-width: 420px;
     display:none;
+    isolation: isolate;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,180,180,0.2);
   }
 
   /* Vehicle marker */
@@ -182,20 +185,43 @@
 
   /* Popup */
   .leaflet-popup-content-wrapper {
-    background: var(--panel);
+    background: rgba(18,21,27,0.55);
     color: var(--text);
-    border: 1px solid var(--panel-border);
-    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    isolation: isolate;
+    box-shadow: var(--glass-shadow);
   }
-  .leaflet-popup-tip { background: var(--panel); }
+  .leaflet-popup-tip { background: rgba(18,21,27,0.75); }
   .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
-  .veh-photo {
-    display: block;
+  .veh-photo-wrap {
+    position: relative;
     width: 100%;
-    max-height: 130px;
-    object-fit: cover;
-    border-radius: 10px;
+    height: 150px;
     margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+  .veh-photo-glow {
+    position: absolute;
+    inset: 34px;
+    z-index: 0;
+    filter: blur(9px);
+    pointer-events: none;
+  }
+  .veh-photo {
+    position: relative;
+    z-index: 1;
+    display: block;
+    max-width: 97%;
+    max-height: 97%;
+    object-fit: contain;
+    -webkit-mask-image: radial-gradient(ellipse 85% 85% at center, #000 92%, transparent 100%);
+    mask-image: radial-gradient(ellipse 85% 85% at center, #000 92%, transparent 100%);
   }
   .popup-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; display:flex; align-items:center; gap:7px; }
   .popup-title .dot { width:10px; height:10px; border-radius:50%; }
@@ -220,8 +246,7 @@
       gap: 8px;
     }
     #secondaryControls #modelFilterBtn {
-      background: rgba(18,21,27,0.92);
-      backdrop-filter: blur(10px);
+      background: var(--glass-tint-strong);
     }
     #secondaryControls #modelDropdown {
       top: auto;
@@ -230,17 +255,20 @@
   }
 
   #modelFilterBtn {
-    background: transparent;
+    background: var(--glass-tint);
     color: var(--text-dim);
-    border: 1px solid var(--panel-border);
-    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    border-radius: 100px;
     padding: 8px 14px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
+    isolation: isolate;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
   }
-  #modelFilterBtn:hover { color: var(--text); border-color:#3a4150; }
+  #modelFilterBtn:hover { color: var(--text); background: var(--glass-tint-strong); }
   #modelFilterBtn.active-filter { border-color: var(--bus); color: var(--bus); }
 
   #modelDropdown {
@@ -249,14 +277,21 @@
     top: calc(100% + 6px);
     left:0;
     z-index: 1100;
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 10px;
-    padding: 10px;
+    background: var(--glass-tint-strong);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
     width: 260px;
     max-height: 340px;
+    overflow: hidden;
+    isolation: isolate;
+    box-shadow: var(--glass-shadow);
+  }
+  #modelDropdownList {
+    max-height: 340px;
     overflow-y: auto;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 10px;
+    position: relative;
+    z-index: 1;
   }
   #modelDropdown.open { display:block; }
   #modelDropdown .group-title {
@@ -276,21 +311,172 @@
     cursor: pointer;
     border-radius: 6px;
   }
-  #modelDropdown label:hover { background:#1a1f28; }
+  #modelDropdown label:hover { background: rgba(255,255,255,0.1); }
   #modelDropdown input { accent-color: var(--bus); }
   #modelDropdown .clear-models {
     margin-top: 8px;
     padding-top: 8px;
-    border-top: 1px solid var(--panel-border);
+    border-top: 1px solid var(--glass-border);
     font-size: 11px;
     color: var(--text-dim);
     cursor: pointer;
     text-align: right;
   }
   #modelDropdown .clear-models:hover { color: var(--text); }
+
+  /* ================= Liquid glass ================= */
+  .chip,
+  #modelFilterBtn {
+    position: relative;
+  }
+  #panel::before,
+  #mapModeBtn::before,
+  #errorBanner::before,
+  .chip::before,
+  #modelFilterBtn::before,
+  #modelDropdown::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    backdrop-filter: blur(18px) saturate(180%);
+    filter: url(#glass-distortion);
+    z-index: -1;
+  }
+  #panel::after,
+  #mapModeBtn::after,
+  #errorBanner::after,
+  .chip::after,
+  #modelFilterBtn::after,
+  #modelDropdown::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.55) 0%, transparent 32%, transparent 68%, rgba(255,255,255,0.28) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  /* keep real content above the glass layers */
+  #panel > * { position: relative; z-index: 1; }
+  #mapModeBtn, #errorBanner, .chip, #modelFilterBtn { isolation: isolate; }
+
+  /* dropdown is tall + scrollable — combining backdrop-filter with the SVG
+     distortion on one element causes Chromium to only blur part of it, so
+     give it a plain (undistorted) blur instead */
+  #modelDropdown::before {
+    filter: none;
+  }
+
+  /* glass-matched scrollbar for the model dropdown */
+  #modelDropdownList { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.35) transparent; }
+  #modelDropdownList::-webkit-scrollbar { width: 7px; }
+  #modelDropdownList::-webkit-scrollbar-track { background: transparent; }
+  #modelDropdownList::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 10px; }
+  #modelDropdownList::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.45); }
+
+  /* custom liquid-glass checkboxes in the model dropdown */
+  #modelDropdown input[type="checkbox"] {
+    -webkit-appearance: none; appearance: none;
+    width: 17px; height: 17px; flex: none;
+    border-radius: 5px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.08);
+    cursor: pointer;
+    position: relative;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  #modelDropdown input[type="checkbox"]:hover { border-color: rgba(255,255,255,0.55); }
+  #modelDropdown input[type="checkbox"]:checked {
+    background: linear-gradient(135deg, var(--bus), var(--troll));
+    border-color: transparent;
+  }
+  #modelDropdown input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute; left: 5px; top: 2px;
+    width: 4px; height: 8px;
+    border: solid #04121c;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  /* glow on the type dots + live status dot */
+  #chipTroll .dot { box-shadow: 0 0 8px var(--troll), 0 0 2px var(--troll); }
+  #chipTram  .dot { box-shadow: 0 0 8px var(--tram), 0 0 2px var(--tram); }
+  #chipBus   .dot { box-shadow: 0 0 8px var(--bus), 0 0 2px var(--bus); }
+  #chipNight .dot { box-shadow: 0 0 8px var(--night), 0 0 2px var(--night); }
+  #statusDot.ok { box-shadow: 0 0 10px #ff4d4d, 0 0 3px #ff4d4d; }
+
+  /* readable text once the light map mode is active */
+  body.light-mode { --text: #14181f; --text-dim: #40474f; }
+  body.light-mode #panel,
+  body.light-mode #mapModeBtn,
+  body.light-mode #errorBanner,
+  body.light-mode .chip,
+  body.light-mode #modelFilterBtn,
+  body.light-mode #modelDropdown {
+    background: rgba(255,255,255,0.5);
+  }
+  body.light-mode .field input[type="text"] {
+    background: rgba(255,255,255,0.55);
+    color: var(--text);
+  }
+  body.light-mode .field input[type="text"]::placeholder { color: #5b6570; }
+
+  body.light-mode #modelDropdownList { scrollbar-color: rgba(0,0,0,0.35) transparent; }
+  body.light-mode #modelDropdownList::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.28); }
+  body.light-mode #modelDropdownList::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.45); }
+  body.light-mode #modelDropdown input[type="checkbox"] {
+    background: rgba(255,255,255,0.5);
+    border-color: rgba(0,0,0,0.3);
+  }
+  body.light-mode #modelDropdown input[type="checkbox"]:hover { border-color: rgba(0,0,0,0.55); }
+
+  /* satelliitvaates olgu ülemine paneel sama tume kui sõidukite andmete kastid (popup) */
+  body.satellite-mode #panel,
+  body.satellite-mode #mapModeBtn,
+  body.satellite-mode #errorBanner,
+  body.satellite-mode .chip,
+  body.satellite-mode #modelFilterBtn,
+  body.satellite-mode #modelDropdown {
+    background: rgba(18,21,27,0.55);
+  }
+
+  /* hele kaart: sõidukite andmete kastid sama heledad kui ülemine paneel, ääred tumedamad (helel äärel poleks kontrasti) */
+  body.light-mode .leaflet-popup-content-wrapper {
+    background: rgba(255,255,255,0.55);
+    border-color: rgba(0,0,0,0.22);
+  }
+  body.light-mode .leaflet-popup-tip {
+    background: rgba(255,255,255,0.8);
+  }
+
+  /* helel kaardil olgu kõikjal tumedam, nähtavam äär, mitte hele nagu tumedal kaardil */
+  body.light-mode #panel,
+  body.light-mode #mapModeBtn,
+  body.light-mode #errorBanner,
+  body.light-mode .chip,
+  body.light-mode #modelFilterBtn,
+  body.light-mode #modelDropdown {
+    border-color: rgba(0,0,0,0.22);
+  }
+  body.light-mode .field input[type="text"] { border-color: rgba(0,0,0,0.22); }
+  body.light-mode .brand { border-right-color: rgba(0,0,0,0.22); }
 </style>
 </head>
 <body>
+
+<svg width="0" height="0" style="position:absolute">
+  <filter id="glass-distortion" x="-20%" y="-20%" width="140%" height="140%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="noise"/>
+    <feGaussianBlur in="noise" stdDeviation="2" result="softNoise"/>
+    <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="20" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
 
 <div id="map"></div>
 
@@ -319,7 +505,7 @@
   <div id="secondaryControls">
     <div style="position:relative;">
       <button id="modelFilterBtn" type="button">Mudel ▾</button>
-      <div id="modelDropdown"></div>
+      <div id="modelDropdown"><div id="modelDropdownList"></div></div>
     </div>
 
     <button id="showAllBtn">Kuva kõik sõidukid</button>
@@ -763,6 +949,7 @@
     '2915': 'Solaris Urbino IV 18 CNG',
     '2923': 'Solaris Urbino IV 12 CNG',
     '3008': 'Solaris Urbino IV 12 CNG',
+    '3009': 'Solaris Urbino IV 18 CNG',
     '3010': 'Solaris Urbino IV 12 CNG',
     '3011': 'Solaris Urbino IV 18 CNG',
     '3012': 'Solaris Urbino IV 18 CNG',
@@ -923,6 +1110,7 @@
     '3558': 'Solaris Urbino IV 12 CNG',
     '3562': 'Solaris Urbino IV 12 CNG',
     '3564': 'Solaris Urbino IV 18 CNG',
+    '3565': 'Solaris Urbino IV 12 CNG',
     '3571': 'MAN A78 Lion\'s City LE EL293',
     '3572': 'MAN A78 Lion\'s City LE EL293',
     '3573': 'MAN A78 Lion\'s City LE EL293',
@@ -1079,7 +1267,7 @@
 
 
   // ---------- Map setup ----------
-  var map = L.map('map', { zoomControl: false, attributionControl: true, preferCanvas: true })
+  var map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true })
     .setView([59.4372, 24.7454], 12);
 
   var darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -1152,6 +1340,31 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function hexToRgb(hex) {
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : { r: 153, g: 153, b: 153 };
+  }
+
+  function vehGlowBackground(hex) {
+    var c = hexToRgb(hex);
+    var rgb = c.r + ',' + c.g + ',' + c.b;
+    // täielikult veh-photo-wrap kasti sees hägustuv valgusrõngas, mis ei saa
+    // kunagi ülemise kaardi serva pealt maha lõigatud
+    return 'radial-gradient(ellipse 52% 48% at center, ' +
+           'rgba(' + rgb + ',0.22) 0%, ' +
+           'rgba(' + rgb + ',0.1) 40%, ' +
+           'rgba(' + rgb + ',0.03) 65%, ' +
+           'rgba(' + rgb + ',0) 82%)';
+  }
+
+  function vehGlowFilter(hex) {
+    var c = hexToRgb(hex);
+    var rgb = c.r + ',' + c.g + ',' + c.b;
+    // õhuke, teravam ääreglow otse sõiduki siluetil, mis toetab tagumist hägust kihti
+    return 'drop-shadow(0 0 1.5px rgba(' + rgb + ',0.4)) ' +
+           'drop-shadow(0 0 4px rgba(' + rgb + ',0.18))';
+  }
+
   function popupHTML(d) {
     var isSub = isTrollSubstitute(d);
     var color = isSub ? TROLL_SUBSTITUTE_COLOR : (COLORS[d.type] || '#999');
@@ -1161,12 +1374,16 @@
     var img = '';
     if (model !== 'Teadmata') {
       var imgSrc = 'Pildid/' + encodeURIComponent(model) + '.png';
-      img = '<img class="veh-photo" src="' + imgSrc + '" alt="' + escapeHtml(model) + '" ' +
-            'onerror="this.style.display=\'none\'">';
+      img = '<div class="veh-photo-wrap">' +
+              '<div class="veh-photo-glow" style="background: ' + vehGlowBackground(color) + '"></div>' +
+              '<img class="veh-photo" src="' + imgSrc + '" alt="' + escapeHtml(model) + '" ' +
+              'style="filter: ' + vehGlowFilter(color) + '" ' +
+              'onerror="this.parentElement.style.display=\'none\'">' +
+            '</div>';
     }
     return '' +
       img +
-      '<div class="popup-title"><span class="dot" style="background:' + color + '"></span>' + name + ' &middot; liin ' + d.line + '</div>' +
+      '<div class="popup-title"><span class="dot" style="background:' + color + '; box-shadow: 0 0 8px ' + color + ', 0 0 3px ' + color + ';"></span>' + name + ' &middot; liin ' + d.line + '</div>' +
       '<div class="popup-row"><span>Mudel</span><b>' + escapeHtml(model) + '</b></div>' +
       '<div class="popup-row"><span>Suund / lõpp-peatus</span><b>' + escapeHtml(dest) + '</b></div>' +
       '<div class="popup-row"><span>Registrinumber</span><b>' + escapeHtml(d.reg) + '</b></div>';
@@ -1259,7 +1476,7 @@
       var iconColor = isTrollSubstitute(d) ? TROLL_SUBSTITUTE_COLOR : (COLORS[d.type] || '#999');
       var icon = makeIcon(iconColor, d.headingNum);
       var marker = L.marker([d.lat, d.lon], { icon: icon, riseOnHover: true });
-      marker.bindPopup(popupHTML(d));
+      marker.bindPopup(popupHTML(d), { closeButton: false });
       if (visible) marker.addTo(map);
       vehicles[id] = {
         marker: marker,
@@ -1530,6 +1747,8 @@
     var mode = MAP_MODES[idx];
     if (!map.hasLayer(mode.layer)) mode.layer.addTo(map);
     mapEl.classList.toggle('dark-mode', mode.darkFilter);
+    document.body.classList.toggle('light-mode', mode.key === 'light');
+    document.body.classList.toggle('satellite-mode', mode.key === 'satellite');
     document.getElementById('mapModeBtn').textContent = mode.label;
     currentModeIndex = idx;
   }
@@ -1555,6 +1774,7 @@
 
   // ---------- Mudeli filtri dropdown ----------
   var modelDropdown = document.getElementById('modelDropdown');
+  var modelDropdownList = document.getElementById('modelDropdownList');
   var modelFilterBtn = document.getElementById('modelFilterBtn');
 
   (function buildModelDropdown() {
@@ -1567,9 +1787,9 @@
       });
     });
     html += '<div class="clear-models" id="clearModelsBtn">Puhasta mudelivalik</div>';
-    modelDropdown.innerHTML = html;
+    modelDropdownList.innerHTML = html;
 
-    modelDropdown.querySelectorAll('input[data-model]').forEach(function(box) {
+    modelDropdownList.querySelectorAll('input[data-model]').forEach(function(box) {
       box.addEventListener('change', function() {
         var model = box.getAttribute('data-model');
         if (box.checked) filters.models.add(model);
@@ -1587,7 +1807,7 @@
 
   function clearModelSelection() {
     filters.models.clear();
-    modelDropdown.querySelectorAll('input[data-model]').forEach(function(box){ box.checked = false; });
+    modelDropdownList.querySelectorAll('input[data-model]').forEach(function(box){ box.checked = false; });
     updateModelButtonLabel();
   }
 
