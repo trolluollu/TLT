@@ -52,14 +52,6 @@
     0% { transform: scale(0.9); opacity: 0.55; }
     75%, 100% { transform: scale(2.2); opacity: 0; }
   }
-  @keyframes shimmerSweep {
-    0% { background-position: -150% 0; }
-    100% { background-position: 250% 0; }
-  }
-  @keyframes glassBreathe {
-    0%, 100% { box-shadow: var(--glass-shadow); }
-    50% { box-shadow: 0 10px 38px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.3); }
-  }
   @keyframes dropdownIn {
     0% { opacity: 0; transform: translateY(-8px) scale(0.96); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
@@ -162,25 +154,18 @@
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
+    text-align: center;
     box-shadow: 0 6px 18px rgba(39,128,130,0.4);
-    transition: transform .2s ease, box-shadow .2s ease;
-    position: relative;
-    overflow: hidden;
-    isolation: isolate;
+    transition: transform .2s ease, box-shadow .2s ease, background .25s ease;
     animation: fadeUpIn .5s cubic-bezier(.22,1,.36,1) .2s backwards;
   }
-  #showAllBtn::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.45) 48%, rgba(255,255,255,0.45) 52%, transparent 70%);
-    background-size: 250% 100%;
-    background-position: -150% 0;
-    pointer-events: none;
-  }
   #showAllBtn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(39,128,130,0.55); }
-  #showAllBtn:hover::after { animation: shimmerSweep 1s ease; }
   #showAllBtn:active { transform: translateY(0) scale(0.97); }
+  #showAllBtn.trajectory-active {
+    background: linear-gradient(135deg, #ff9a3d, #e0631c);
+    box-shadow: 0 6px 18px rgba(224,99,28,0.45);
+  }
+  #showAllBtn.trajectory-active:hover { box-shadow: 0 8px 22px rgba(224,99,28,0.6); }
 
   #mapModeBtn {
     position: absolute;
@@ -280,7 +265,6 @@
     -webkit-backdrop-filter: blur(18px) saturate(180%);
     isolation: isolate;
     box-shadow: var(--glass-shadow);
-    animation: glassBreathe 4s ease-in-out infinite;
   }
   .leaflet-popup-tip { background: rgba(18,21,27,0.75); }
   .leaflet-popup-content { margin: 12px 14px; font-size: 13px; }
@@ -317,6 +301,71 @@
   .popup-title .dot { width:10px; height:10px; border-radius:50%; flex: none; }
   .popup-row { display:flex; justify-content:space-between; gap: 16px; padding: 2px 0; color: var(--text-dim); font-size: 12px; white-space: nowrap; }
   .popup-row b { color: var(--text); font-weight:600; }
+
+  .veh-line-link {
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    transition: color .15s ease;
+  }
+  .veh-line-link:hover { color: #fff; }
+
+  .selected-stop-marker {
+    filter: drop-shadow(0 0 7px #ff4d4d) drop-shadow(0 0 2px #ff4d4d);
+  }
+
+  /* Stop popup: line list + route info */
+  .stop-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .stop-lines { display: flex; flex-wrap: wrap; gap: 6px; max-width: 220px; }
+  .line-pill {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.35);
+    transition: transform .1s ease, filter .15s ease;
+  }
+  .line-pill:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .line-pill:active { transform: translateY(0) scale(0.95); }
+  .stop-empty, .stop-loading { color: var(--text-dim); font-size: 12px; }
+  .route-back {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .route-back:hover { color: var(--text); }
+  .route-eta { font-size: 12px; color: var(--text); margin-top: 4px; }
+  .route-eta b { color: #fff; }
+
+  #etaPanel {
+    position: absolute;
+    top: 76px; left: 14px;
+    z-index: 999;
+    background: var(--glass-tint);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 260px;
+    display: none;
+    isolation: isolate;
+    box-shadow: var(--glass-shadow);
+  }
+  #etaPanel.show { display:block; animation: fadeUpIn .3s ease; }
+  #etaPanel .eta-line { font-size: 14px; font-weight: 700; color: var(--text); }
+  #etaPanel .eta-stop { margin-top: 3px; color: var(--text-dim); }
+  #etaPanel .eta-times { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
+  #etaPanel .eta-chip { font-weight: 700; color: var(--text); background: color-mix(in srgb, currentColor 14%, transparent); border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 8px; padding: 2px 8px; font-size: 13px; }
+  #etaPanel .eta-chip.delayed { color: #ffb84d; }
+  #etaPanel .eta-dest { margin-top: 2px; color: var(--text-dim); font-size: 11px; }
+  #etaPanel .eta-empty { font-size: 14px; font-weight: 700; color: var(--text); }
+  #etaPanel .eta-mins { margin-top: 5px; color: var(--text-dim); font-size: 11px; }
 
   #secondaryControls { display: contents; }
 
@@ -447,6 +496,7 @@
   #panel::before,
   #mapModeBtn::before,
   #errorBanner::before,
+  #etaPanel::before,
   .chip::before,
   #modelFilterBtn::before,
   #modelDropdown::before {
@@ -462,6 +512,7 @@
   #panel::after,
   #mapModeBtn::after,
   #errorBanner::after,
+  #etaPanel::after,
   .chip::after,
   #modelFilterBtn::after,
   #modelDropdown::after {
@@ -478,7 +529,7 @@
   }
 
   #panel > * { position: relative; z-index: 1; }
-  #mapModeBtn, #errorBanner, .chip, #modelFilterBtn { isolation: isolate; }
+  #mapModeBtn, #errorBanner, #etaPanel, .chip, #modelFilterBtn { isolation: isolate; }
 
   #modelDropdown::before {
     filter: none;
@@ -533,6 +584,7 @@
   body.light-mode #panel,
   body.light-mode #mapModeBtn,
   body.light-mode #errorBanner,
+  body.light-mode #etaPanel,
   body.light-mode .chip,
   body.light-mode #modelFilterBtn,
   body.light-mode #modelDropdown {
@@ -552,6 +604,7 @@
   body.satellite-mode #panel,
   body.satellite-mode #mapModeBtn,
   body.satellite-mode #errorBanner,
+  body.satellite-mode #etaPanel,
   body.satellite-mode .chip,
   body.satellite-mode #modelFilterBtn,
   body.satellite-mode #modelDropdown {
@@ -571,6 +624,7 @@
   body.light-mode #panel,
   body.light-mode #mapModeBtn,
   body.light-mode #errorBanner,
+  body.light-mode #etaPanel,
   body.light-mode .chip,
   body.light-mode #modelFilterBtn,
   body.light-mode #modelDropdown {
@@ -628,10 +682,13 @@
   <div id="status"><span id="statusDot" class="pending"></span><span id="statusText">Ühendan…</span></div>
 </div>
 
+<div id="etaPanel" class="eta-panel"></div>
+
 <div id="errorBanner"></div>
 
 <button id="mapModeBtn" title="Vaheta kaardirežiimi">🛰️ Satelliitvaade</button>
 
+<script src="vehicle-models.js"></script>
 <script>
 (function(){
 
@@ -655,6 +712,45 @@
 
   var COLORS = { '1': '#0060d3', '2': '#00e2b6', '3': '#ff5f26', '7': '#7a5cff' };
   var TYPE_NAMES = { '1': 'Trollibuss', '2': 'Buss', '3': 'Tramm', '7': 'Ööbuss' };
+
+  // ---------- Sõiduplaani (SIRI) andmed transport.tallinn.ee avaandmetest ----------
+  // Peatuste nimekiri koos "SiriID"-ga (vajalik saabumisaegade päringuks) ja tegelike/kavandatud
+  // väljumisaegade endpoint - vt https://avaandmed.tallinn.ee/nimistu?id=33
+  var STOPS_TXT_URL = 'https://transport.tallinn.ee/data/stops.txt';
+  var SIRI_DEPARTURES_URL = 'https://transport.tallinn.ee/siri-stop-departures.php';
+  var SIRI_STOP_MATCH_METERS = 150; // kui lähim sõiduplaani peatus on kaugemal, ei loeta seda samaks peatuseks
+  var SIRI_SCHEDULE_TTL_MS = 15000; // kui kaua vahemällu jäetud väljumisaegu taaskasutada enne uut päringut
+  function buildProxyList(targetUrl) {
+    return [
+      'https://r.jina.ai/' + targetUrl,
+      'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl),
+      targetUrl,
+      'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl),
+      'https://corsproxy.io/?url=' + encodeURIComponent(targetUrl),
+      'https://thingproxy.freeboard.io/fetch/' + targetUrl,
+      'https://cors.eu.org/' + targetUrl,
+      'https://api.cors.lol/?url=' + encodeURIComponent(targetUrl),
+      'https://proxy.cors.sh/' + targetUrl,
+      'https://yacdn.org/proxy/' + targetUrl
+    ];
+  }
+
+  // ---------- Peatused ja liinid (gis.tallinn.ee avaandmed) ----------
+  var GIS_BASE = 'https://gis.tallinn.ee/arcgis/rest/services/yhistransport/MapServer';
+  var STOPS_LAYER = 0;
+  var ROUTE_LAYERS = { troll: 1, tram: 2, bus: 3 };
+  var ROUTE_COLORS = { bus: '#00886d', troll: '#003a7f', tram: '#993917' }; // tumedamad versioonid sõidukite värvidest (COLORS)
+  var ROUTE_NAMES = { bus: 'buss', troll: 'troll', tram: 'tramm' };
+  var TYPE_TO_MODE = { '1': 'troll', '2': 'bus', '3': 'tram', '7': 'bus' };
+  var STOPS_MIN_ZOOM = 15;
+
+  // Peatuste visuaalne stiil kaardirežiimi kaupa - satelliidipildi peal on hall täpp raskesti nähtav,
+  // seega tehakse seal peatused veidi kontrastsemaks. Tume/hele kaardil jäävad senised toonid.
+  var STOP_STYLES = {
+    satellite: { color: 'rgba(255,255,255,0.95)', weight: 1.5, fillColor: '#ffe14d', fillOpacity: 0.9 },
+    dark:      { color: 'rgba(255,255,255,0.45)', weight: 1,   fillColor: '#9aa3b0', fillOpacity: 0.55 },
+    light:     { color: 'rgba(0,0,0,0.5)',        weight: 1,   fillColor: '#5b6570', fillOpacity: 0.8  }
+  };
 
   // ---------- Mudelite kataloog ----------
   var MODEL_CATALOG = [
@@ -686,716 +782,6 @@
     return d.type === '1' && BUS_MODEL_SET.has(d.model);
   }
   // ===== TROLLI ASENDUSE TUVASTUS (LÕPP) =====
-  // ============================================================
-  // SÕIDUKI MUDELID — registrinumber -> mudel
-  // iga rida on '"registrinumber": "mudeli nimi",'
-  // kui mõne sõiduki registrinumbrile pole siin vastet, näidatakse popupis "Teadmata".
-  // ============================================================
-  var VEHICLE_MODELS = {
-    // ---- BUSSID ----
-    '1003': 'Solaris Urbino IV 18 CNG',
-    '1009': 'Solaris Urbino IV 18 CNG',
-    '1012': 'MAN A40 Lion\'s City GL NG323',
-    '1013': 'MAN A40 Lion\'s City GL NG323',
-    '1014': 'MAN A40 Lion\'s City GL NG323',
-    '1016': 'Solaris Urbino IV 18 CNG',
-    '1017': 'Solaris Urbino IV 18 CNG',
-    '1018': 'MAN A40 Lion\'s City GL NG323',
-    '1019': 'Solaris Urbino IV 18 CNG',
-    '1020': 'MAN A40 Lion\'s City GL NG323',
-    '1021': 'MAN A40 Lion\'s City GL NG323',
-    '1022': 'Solaris Urbino IV 18 CNG',
-    '1023': 'MAN A40 Lion\'s City GL NG323',
-    '1024': 'MAN A40 Lion\'s City GL NG323',
-    '1028': 'Solaris Urbino IV 18 CNG',
-    '1029': 'MAN A40 Lion\'s City GL NG323',
-    '1030': 'MAN A40 Lion\'s City GL NG323',
-    '1031': 'MAN A40 Lion\'s City GL NG323',
-    '1037': 'MAN A40 Lion\'s City GL NG323',
-    '1038': 'MAN A40 Lion\'s City GL NG323',
-    '1039': 'Solaris Urbino IV 18 CNG',
-    '1047': 'MAN A78 Lion\'s City LE EL293',
-    '1071': 'Solaris Urbino IV 12 CNG',
-    '1097': 'Solaris Urbino IV 18 CNG',
-    '1099': 'Solaris Urbino IV 18 CNG',
-    '1107': 'MAN A78 Lion\'s City LE EL293',
-    '1108': 'MAN A78 Lion\'s City LE EL293',
-    '1109': 'MAN A78 Lion\'s City LE EL293',
-    '1110': 'MAN A78 Lion\'s City LE EL293',
-    '1112': 'MAN A78 Lion\'s City LE EL293',
-    '1113': 'MAN A78 Lion\'s City LE EL293',
-    '1114': 'MAN A78 Lion\'s City LE EL293',
-    '1115': 'MAN A78 Lion\'s City LE EL293',
-    '1116': 'Solaris Urbino IV 12 CNG',
-    '1117': 'Solaris Urbino IV 12 CNG',
-    '1118': 'MAN A78 Lion\'s City LE EL293',
-    '1119': 'MAN A78 Lion\'s City LE EL293',
-    '1120': 'MAN A78 Lion\'s City LE EL293',
-    '1121': 'MAN A78 Lion\'s City LE EL293',
-    '1141': 'MAN A78 Lion\'s City LE EL293',
-    '1142': 'MAN A78 Lion\'s City LE EL293',
-    '1143': 'MAN A78 Lion\'s City LE EL293',
-    '1144': 'MAN A78 Lion\'s City LE EL293',
-    '1145': 'MAN A21 Lion\'s City NL283',
-    '1149': 'Solaris Urbino IV 12 CNG',
-    '1152': 'Solaris Urbino IV 12 CNG',
-    '1153': 'Solaris Urbino IV 12 CNG',
-    '1157': 'Solaris Urbino IV 12 CNG',
-    '1158': 'Solaris Urbino IV 12 CNG',
-    '1160': 'Volvo 7900 Hybrid',
-    '1161': 'Volvo 7900 Hybrid',
-    '1162': 'Volvo 7900 Hybrid',
-    '1163': 'Volvo 7900 Hybrid',
-    '1164': 'Volvo 7900 Hybrid',
-    '1165': 'Volvo 7900 Hybrid',
-    '1166': 'Volvo 7900 Hybrid',
-    '1167': 'Volvo 7900 Hybrid',
-    '1168': 'Volvo 7900 Hybrid',
-    '1169': 'Volvo 7900 Hybrid',
-    '1170': 'Volvo 7900 Hybrid',
-    '1171': 'Volvo 7900 Hybrid',
-    '1180': 'Solaris Urbino IV 12 CNG',
-    '1186': 'Solaris Urbino IV 12 CNG',
-    '1187': 'Solaris Urbino IV 12 CNG',
-    '1203': 'Solaris Urbino IV 12 CNG',
-    '1204': 'Solaris Urbino IV 12 CNG',
-    '1214': 'Solaris Urbino IV 18 CNG',
-    '1215': 'Solaris Urbino IV 12 CNG',
-    '1216': 'Solaris Urbino IV 18 CNG',
-    '1222': 'Solaris Urbino IV 12 CNG',
-    '1223': 'Solaris Urbino IV 12 CNG',
-    '1225': 'Solaris Urbino IV 12 CNG',
-    '1226': 'MAN A78 Lion\'s City LE EL293',
-    '1227': 'MAN A78 Lion\'s City LE EL293',
-    '1230': 'Solaris Urbino IV 12 CNG',
-    '1232': 'Solaris Urbino IV 12 CNG',
-    '1233': 'Solaris Urbino IV 12 CNG',
-    '1235': 'Solaris Urbino IV 12 CNG',
-    '1236': 'Solaris Urbino IV 12 CNG',
-    '1238': 'Solaris Urbino IV 12 CNG',
-    '1240': 'Solaris Urbino IV 12 CNG',
-    '1242': 'Solaris Urbino IV 12 CNG',
-    '1243': 'Solaris Urbino IV 12 CNG',
-    '1244': 'Solaris Urbino IV 12 CNG',
-    '1248': 'Solaris Urbino IV 12 CNG',
-    '1249': 'Solaris Urbino IV 18 CNG',
-    '1262': 'Solaris Urbino IV 12 CNG',
-    '1263': 'BMC Procity II 18 CNG',
-    '1265': 'Solaris Urbino IV 12 CNG',
-    '1277': 'Solaris Urbino IV 12 CNG',
-    '1281': 'Solaris Urbino IV 12 CNG',
-    '1289': 'Solaris Urbino IV 12 CNG',
-    '1297': 'Solaris Urbino IV 12 CNG',
-    '1300': 'Solaris Urbino IV 18 CNG',
-    '1301': 'Solaris Urbino IV 18 CNG',
-    '1302': 'Solaris Urbino IV 18 CNG',
-    '1304': 'Solaris Urbino IV 18 CNG',
-    '1305': 'Solaris Urbino IV 18 CNG',
-    '1315': 'Solaris Urbino IV 18 CNG',
-    '1316': 'Solaris Urbino IV 18 CNG',
-    '1317': 'Solaris Urbino IV 18 CNG',
-    '1335': 'BMC Procity II 18 CNG',
-    '1337': 'BMC Procity II 18 CNG',
-    '1338': 'BMC Procity II 18 CNG',
-    '1347': 'Solaris Urbino IV 18 CNG',
-    '1348': 'Solaris Urbino IV 12 CNG',
-    '1362': 'BMC Procity II 18 CNG',
-    '1363': 'BMC Procity II 18 CNG',
-    '1364': 'BMC Procity II 18 CNG',
-    '1366': 'BMC Procity II 18 CNG',
-    '1367': 'BMC Procity II 18 CNG',
-    '1384': 'Solaris Urbino IV 18 CNG',
-    '1401': 'Solaris Urbino IV 18 CNG',
-    '1406': 'Solaris Urbino IV 12 CNG',
-    '1408': 'MAN A78 Lion\'s City LE EL293',
-    '1412': 'Solaris Urbino IV 18 CNG',
-    '1415': 'Solaris Urbino IV 18 CNG',
-    '1419': 'Solaris Urbino IV 18 CNG',
-    '1421': 'Solaris Urbino IV 18 CNG',
-    '1422': 'Solaris Urbino IV 18 CNG',
-    '1423': 'Solaris Urbino IV 18 CNG',
-    '1424': 'Solaris Urbino IV 18 CNG',
-    '1425': 'Solaris Urbino IV 18 CNG',
-    '1426': 'Solaris Urbino IV 18 CNG',
-    '1427': 'Solaris Urbino IV 18 CNG',
-    '1428': 'Solaris Urbino IV 18 CNG',
-    '1438': 'Solaris Urbino IV 18 CNG',
-    '1439': 'Solaris Urbino IV 18 CNG',
-    '1442': 'Solaris Urbino IV 18 CNG',
-    '1449': 'Solaris Urbino IV 18 CNG',
-    '1473': 'MAN A78 Lion\'s City LE EL293',
-    '1474': 'MAN A78 Lion\'s City LE EL293',
-    '1475': 'MAN A78 Lion\'s City LE EL293',
-    '1476': 'MAN A78 Lion\'s City LE EL293',
-    '1477': 'MAN A78 Lion\'s City LE EL293',
-    '1478': 'MAN A78 Lion\'s City LE EL293',
-    '1486': 'Solaris Urbino IV 18 CNG',
-    '1489': 'Solaris Urbino IV 18 CNG',
-    '1491': 'MAN A40 Lion\'s City GL NG323',
-    '1492': 'MAN A40 Lion\'s City GL NG323',
-    '1493': 'MAN A40 Lion\'s City GL NG323',
-    '1494': 'MAN A40 Lion\'s City GL NG323',
-    '1496': 'Solaris Urbino IV 12 CNG',
-    '1500': 'Solaris Urbino IV 12 CNG',
-    '1506': 'Solaris Urbino IV 12 CNG',
-    '1516': 'Solaris Urbino IV 18 CNG',
-    '1518': 'Solaris Urbino IV 18 CNG',
-    '1520': 'Solaris Urbino IV 18 CNG',
-    '1546': 'Solaris Urbino IV 18 CNG',
-    '1553': 'Solaris Urbino IV 18 CNG',
-    '1559': 'Solaris Urbino IV 12 CNG',
-    '1560': 'Solaris Urbino IV 12 CNG',
-    '1561': 'Solaris Urbino IV 18 CNG',
-    '1563': 'Solaris Urbino IV 18 CNG',
-    '1568': 'MAN A78 Lion\'s City LE EL293',
-    '1569': 'Solaris Urbino IV 18 CNG',
-    '1631': 'Solaris Urbino IV 18 CNG',
-    '1649': 'BMC Procity II 18 CNG',
-    '1710': 'Volvo 7900 Hybrid',
-    '1740': 'Volvo 7900 Hybrid',
-    '1742': 'Volvo 7900 Hybrid',
-    '1744': 'Volvo 7900 Hybrid',
-    '1747': 'Volvo 7900 Hybrid',
-    '1757': 'Solaris Urbino IV 12 CNG',
-    '1759': 'Volvo 7900 Hybrid',
-    '1772': 'Volvo 7900 Hybrid',
-    '1774': 'Volvo 7900 Hybrid',
-    '1798': 'Solaris Urbino IV 12 CNG',
-    '1813': 'Solaris Urbino IV 12 CNG',
-    '1829': 'Volvo 7900 Hybrid',
-    '1856': 'Solaris Urbino IV 18 CNG',
-    '1861': 'Volvo 7900 Hybrid',
-    '1885': 'Solaris Urbino IV 18 CNG',
-    '1888': 'Solaris Urbino IV 18 CNG',
-    '1908': 'Solaris Urbino IV 12 CNG',
-    '1942': 'Solaris Urbino IV 12 CNG',
-    '1956': 'Solaris Urbino IV 12 CNG',
-    '1957': 'Solaris Urbino IV 12 CNG',
-    '1960': 'Solaris Urbino IV 12 CNG',
-    '1961': 'Solaris Urbino IV 12 CNG',
-    '1967': 'Solaris Urbino IV 12 CNG',
-    '1969': 'Solaris Urbino IV 12 CNG',
-    '2032': 'Solaris Urbino IV 12 CNG',
-    '2034': 'Solaris Urbino IV 12 CNG',
-    '2035': 'Solaris Urbino IV 12 CNG',
-    '2045': 'Solaris Urbino IV 18 CNG',
-    '2048': 'BMC Procity II 12 CNG',
-    '2050': 'BMC Procity II 12 CNG',
-    '2061': 'Solaris Urbino IV 12 CNG',
-    '2064': 'Solaris Urbino IV 12 CNG',
-    '2065': 'Solaris Urbino IV 12 CNG',
-    '2068': 'Solaris Urbino IV 12 CNG',
-    '2069': 'Solaris Urbino IV 18 CNG',
-    '2070': 'Solaris Urbino IV 18 CNG',
-    '2073': 'Solaris Urbino IV 12 CNG',
-    '2074': 'Solaris Urbino IV 18 CNG',
-    '2081': 'BMC Procity II 12 CNG',
-    '2082': 'BMC Procity II 12 CNG',
-    '2091': 'BMC Procity II 12 CNG',
-    '2094': 'BMC Procity II 12 CNG',
-    '2095': 'BMC Procity II 12 CNG',
-    '2096': 'BMC Procity II 12 CNG',
-    '2100': 'Solaris Urbino IV 18 CNG',
-    '2122': 'Solaris Urbino IV 18 CNG',
-    '2123': 'Solaris Urbino IV 18 CNG',
-    '2125': 'Solaris Urbino IV 12 CNG',
-    '2126': 'Volvo 7900 Hybrid',
-    '2127': 'Solaris Urbino IV 12 CNG',
-    '2130': 'BMC Procity II 12 CNG',
-    '2132': 'Solaris Urbino IV 12 CNG',
-    '2133': 'Solaris Urbino IV 12 CNG',
-    '2134': 'Solaris Urbino IV 12 CNG',
-    '2140': 'Volvo 7900 Hybrid',
-    '2148': 'Solaris Urbino IV 18 CNG',
-    '2181': 'Volvo 7900 Hybrid',
-    '2188': 'Volvo 7900 Hybrid',
-    '2189': 'Volvo 7900 Hybrid',
-    '2194': 'Volvo 7900 Hybrid',
-    '2195': 'Solaris Urbino IV 12 CNG',
-    '2198': 'Volvo 7900 Hybrid',
-    '2199': 'Volvo 7900 Hybrid',
-    '2200': 'MAN A78 Lion\'s City LE EL293',
-    '2208': 'MAN A78 Lion\'s City LE EL293',
-    '2209': 'MAN A78 Lion\'s City LE EL293',
-    '2212': 'MAN A78 Lion\'s City LE EL293',
-    '2221': 'MAN A78 Lion\'s City LE EL293',
-    '2224': 'MAN A78 Lion\'s City LE EL293',
-    '2228': 'MAN A78 Lion\'s City LE EL293',
-    '2234': 'MAN A78 Lion\'s City LE EL293',
-    '2237': 'MAN A40 Lion\'s City GL NG323',
-    '2246': 'MAN A40 Lion\'s City GL NG323',
-    '2247': 'MAN A40 Lion\'s City GL NG323',
-    '2252': 'MAN A40 Lion\'s City GL NG323',
-    '2253': 'Solaris Urbino IV 12 CNG',
-    '2254': 'Solaris Urbino IV 18 CNG',
-    '2255': 'MAN A40 Lion\'s City GL NG323',
-    '2257': 'MAN A40 Lion\'s City GL NG323',
-    '2258': 'Solaris Urbino IV 12 CNG',
-    '2284': 'MAN A40 Lion\'s City GL NG323',
-    '2286': 'MAN A40 Lion\'s City GL NG323',
-    '2287': 'MAN A40 Lion\'s City GL NG323',
-    '2290': 'MAN A78 Lion\'s City LE EL293',
-    '2291': 'MAN A78 Lion\'s City LE EL293',
-    '2292': 'MAN A78 Lion\'s City LE EL293',
-    '2293': 'MAN A78 Lion\'s City LE EL293',
-    '2294': 'MAN A78 Lion\'s City LE EL293',
-    '2307': 'MAN A78 Lion\'s City LE EL293',
-    '2311': 'MAN A78 Lion\'s City LE EL293',
-    '2323': 'MAN A78 Lion\'s City LE EL293',
-    '2324': 'MAN A78 Lion\'s City LE EL293',
-    '2325': 'MAN A78 Lion\'s City LE EL293',
-    '2329': 'MAN A78 Lion\'s City LE EL293',
-    '2330': 'MAN A78 Lion\'s City LE EL293',
-    '2331': 'MAN A78 Lion\'s City LE EL293',
-    '2333': 'MAN A78 Lion\'s City LE EL293',
-    '2334': 'MAN A78 Lion\'s City LE EL293',
-    '2375': 'Solaris Urbino IV 18 CNG',
-    '2390': 'Solaris Urbino IV 18 CNG',
-    '2440': 'Solaris Urbino IV 18 CNG',
-    '2441': 'Solaris Urbino IV 12 CNG',
-    '2445': 'Solaris Urbino IV 12 CNG',
-    '2446': 'Solaris Urbino IV 12 CNG',
-    '2455': 'Solaris Urbino IV 18 CNG',
-    '2459': 'Solaris Urbino IV 18 CNG',
-    '2460': 'Solaris Urbino IV 18 CNG',
-    '2472': 'Solaris Urbino IV 12 CNG',
-    '2480': 'BMC Procity II 12 CNG',
-    '2481': 'BMC Procity II 12 CNG',
-    '2482': 'BMC Procity II 12 CNG',
-    '2483': 'Solaris Urbino IV 18 CNG',
-    '2484': 'BMC Procity II 12 CNG',
-    '2497': 'Solaris Urbino IV 12 CNG',
-    '2498': 'Volvo 7900 Hybrid',
-    '2501': 'Solaris Urbino IV 18 CNG',
-    '2502': 'Solaris Urbino IV 18 CNG',
-    '2504': 'Solaris Urbino IV 12 CNG',
-    '2508': 'Solaris Urbino IV 18 CNG',
-    '2510': 'Solaris Urbino IV 18 CNG',
-    '2513': 'Solaris Urbino IV 12 CNG',
-    '2515': 'Solaris Urbino IV 18 CNG',
-    '2519': 'Solaris Urbino IV 18 CNG',
-    '2522': 'Solaris Urbino IV 18 CNG',
-    '2523': 'Solaris Urbino IV 18 CNG',
-    '2524': 'Solaris Urbino IV 18 CNG',
-    '2525': 'Solaris Urbino IV 18 CNG',
-    '2526': 'Solaris Urbino IV 18 CNG',
-    '2527': 'Solaris Urbino IV 18 CNG',
-    '2542': 'Solaris Urbino IV 18 CNG',
-    '2543': 'Solaris Urbino IV 18 CNG',
-    '2556': 'Solaris Urbino IV 12 CNG',
-    '2557': 'Solaris Urbino IV 18 CNG',
-    '2566': 'Solaris Urbino IV 18 CNG',
-    '2567': 'BMC Procity II 12 CNG',
-    '2570': 'BMC Procity II 12 CNG',
-    '2580': 'Solaris Urbino IV 18 CNG',
-    '2590': 'BMC Procity II 12 CNG',
-    '2591': 'Solaris Urbino IV 18 CNG',
-    '2595': 'BMC Procity II 12 CNG',
-    '2596': 'BMC Procity II 12 CNG',
-    '2600': 'Solaris Urbino IV 12 CNG',
-    '2614': 'Solaris Urbino IV 18 CNG',
-    '2616': 'Solaris Urbino IV 18 CNG',
-    '2618': 'MAN A78 Lion\'s City LE EL293',
-    '2621': 'BMC Procity II 12 CNG',
-    '2632': 'MAN A78 Lion\'s City LE EL293',
-    '2635': 'Solaris Urbino IV 12 CNG',
-    '2641': 'Solaris Urbino IV 12 CNG',
-    '2643': 'Solaris Urbino IV 12 CNG',
-    '2645': 'Solaris Urbino IV 12 CNG',
-    '2647': 'Solaris Urbino IV 12 CNG',
-    '2648': 'MAN A78 Lion\'s City LE EL293',
-    '2650': 'MAN A78 Lion\'s City LE EL293',
-    '2658': 'Solaris Urbino IV 12 CNG',
-    '2660': 'MAN A78 Lion\'s City LE EL293',
-    '2662': 'Solaris Urbino IV 12 CNG',
-    '2668': 'Solaris Urbino IV 12 CNG',
-    '2669': 'Solaris Urbino IV 12 CNG',
-    '2671': 'Solaris Urbino IV 12 CNG',
-    '2672': 'Solaris Urbino IV 12 CNG',
-    '2673': 'MAN A40 Lion\'s City GL NG323',
-    '2677': 'Solaris Urbino IV 12 CNG',
-    '2683': 'Solaris Urbino IV 12 CNG',
-    '2684': 'Solaris Urbino IV 12 CNG',
-    '2689': 'Solaris Urbino IV 12 CNG',
-    '2690': 'Solaris Urbino IV 12 CNG',
-    '2695': 'MAN A40 Lion\'s City GL NG323',
-    '2700': 'MAN A21 Lion\'s City NL283',
-    '2701': 'MAN A21 Lion\'s City NL283',
-    '2705': 'MAN A40 Lion\'s City GL NG323',
-    '2706': 'MAN A40 Lion\'s City GL NG323',
-    '2707': 'MAN A40 Lion\'s City GL NG323',
-    '2716': 'Solaris Urbino IV 18 CNG',
-    '2720': 'Solaris Urbino IV 18 CNG',
-    '2721': 'Volvo 7900 Hybrid',
-    '2722': 'Volvo 7900 Hybrid',
-    '2723': 'Volvo 7900 Hybrid',
-    '2724': 'Volvo 7900 Hybrid',
-    '2725': 'Volvo 7900 Hybrid',
-    '2726': 'Volvo 7900 Hybrid',
-    '2727': 'Volvo 7900 Hybrid',
-    '2728': 'Volvo 7900 Hybrid',
-    '2729': 'Volvo 7900 Hybrid',
-    '2730': 'Volvo 7900 Hybrid',
-    '2731': 'Volvo 7900 Hybrid',
-    '2732': 'Volvo 7900 Hybrid',
-    '2748': 'Solaris Urbino IV 18 CNG',
-    '2752': 'Solaris Urbino IV 12 CNG',
-    '2757': 'Solaris Urbino IV 12 CNG',
-    '2764': 'Solaris Urbino IV 12 CNG',
-    '2767': 'Solaris Urbino IV 12 CNG',
-    '2770': 'Solaris Urbino IV 12 CNG',
-    '2773': 'Solaris Urbino IV 12 CNG',
-    '2775': 'Solaris Urbino IV 12 CNG',
-    '2776': 'Solaris Urbino IV 12 CNG',
-    '2777': 'Solaris Urbino IV 12 CNG',
-    '2784': 'Solaris Urbino IV 18 CNG',
-    '2787': 'Solaris Urbino IV 18 CNG',
-    '2789': 'Solaris Urbino IV 18 CNG',
-    '2801': 'Solaris Urbino IV 18 CNG',
-    '2804': 'Solaris Urbino IV 12 CNG',
-    '2849': 'Solaris Urbino IV 12 CNG',
-    '2861': 'Solaris Urbino IV 18 CNG',
-    '2895': 'Solaris Urbino IV 18 CNG',
-    '2896': 'Volvo 7900 Hybrid',
-    '2897': 'Solaris Urbino IV 12 CNG',
-    '2915': 'Solaris Urbino IV 18 CNG',
-    '2923': 'Solaris Urbino IV 12 CNG',
-    '3008': 'Solaris Urbino IV 12 CNG',
-    '3009': 'Solaris Urbino IV 18 CNG',
-    '3010': 'Solaris Urbino IV 12 CNG',
-    '3011': 'Solaris Urbino IV 18 CNG',
-    '3012': 'Solaris Urbino IV 18 CNG',
-    '3013': 'Solaris Urbino IV 18 CNG',
-    '3014': 'Solaris Urbino IV 18 CNG',
-    '3018': 'Solaris Urbino IV 18 CNG',
-    '3020': 'Solaris Urbino IV 18 CNG',
-    '3021': 'Solaris Urbino IV 18 CNG',
-    '3023': 'Solaris Urbino IV 18 CNG',
-    '3024': 'Solaris Urbino IV 18 CNG',
-    '3029': 'Solaris Urbino IV 12 CNG',
-    '3030': 'Solaris Urbino IV 12 CNG',
-    '3031': 'Solaris Urbino IV 12 CNG',
-    '3032': 'Solaris Urbino IV 12 CNG',
-    '3033': 'Solaris Urbino IV 18 CNG',
-    '3034': 'Solaris Urbino IV 18 CNG',
-    '3035': 'Solaris Urbino IV 18 CNG',
-    '3036': 'Solaris Urbino IV 12 CNG',
-    '3044': 'Solaris Urbino IV 18 CNG',
-    '3060': 'Solaris Urbino IV 12 CNG',
-    '3062': 'Solaris Urbino IV 18 CNG',
-    '3063': 'Solaris Urbino IV 18 CNG',
-    '3067': 'Solaris Urbino IV 18 CNG',
-    '3070': 'Solaris Urbino IV 18 CNG',
-    '3072': 'Solaris Urbino IV 12 CNG',
-    '3086': 'MAN A40 Lion\'s City GL NG323',
-    '3101': 'Solaris Urbino IV 12 CNG',
-    '3102': 'Solaris Urbino IV 12 CNG',
-    '3103': 'Solaris Urbino IV 12 CNG',
-    '3105': 'Solaris Urbino IV 12 CNG',
-    '3106': 'Solaris Urbino IV 12 CNG',
-    '3124': 'Solaris Urbino IV 18 CNG',
-    '3129': 'Solaris Urbino IV 18 CNG',
-    '3135': 'Solaris Urbino IV 12 CNG',
-    '3136': 'Solaris Urbino IV 12 CNG',
-    '3137': 'Solaris Urbino IV 12 CNG',
-    '3154': 'Solaris Urbino IV 12 CNG',
-    '3182': 'Solaris Urbino IV 18 CNG',
-    '3190': 'Solaris Urbino IV 12 CNG',
-    '3201': 'MAN A40 Lion\'s City GL NG323',
-    '3206': 'MAN A40 Lion\'s City GL NG323',
-    '3207': 'MAN A40 Lion\'s City GL NG323',
-    '3211': 'Solaris Urbino IV 12 CNG',
-    '3213': 'Solaris Urbino IV 12 CNG',
-    '3217': 'Solaris Urbino IV 12 CNG',
-    '3218': 'Solaris Urbino IV 12 CNG',
-    '3219': 'Solaris Urbino IV 12 CNG',
-    '3220': 'Solaris Urbino IV 12 CNG',
-    '3229': 'Solaris Urbino IV 12 CNG',
-    '3231': 'Solaris Urbino IV 12 CNG',
-    '3241': 'Solaris Urbino IV 12 CNG',
-    '3245': 'Solaris Urbino IV 12 CNG',
-    '3250': 'MAN A40 Lion\'s City GL NG323',
-    '3251': 'Solaris Urbino IV 12 CNG',
-    '3260': 'Solaris Urbino IV 12 CNG',
-    '3261': 'Solaris Urbino IV 12 CNG',
-    '3267': 'Solaris Urbino IV 12 CNG',
-    '3270': 'Solaris Urbino IV 18 CNG',
-    '3271': 'Solaris Urbino IV 18 CNG',
-    '3274': 'Solaris Urbino IV 12 CNG',
-    '3275': 'Solaris Urbino IV 12 CNG',
-    '3276': 'Solaris Urbino IV 12 CNG',
-    '3278': 'Solaris Urbino IV 12 CNG',
-    '3280': 'Solaris Urbino IV 12 CNG',
-    '3283': 'Solaris Urbino IV 12 CNG',
-    '3295': 'Solaris Urbino IV 12 CNG',
-    '3296': 'Solaris Urbino IV 18 CNG',
-    '3298': 'MAN A78 Lion\'s City LE EL293',
-    '3303': 'Solaris Urbino IV 12 CNG',
-    '3306': 'Solaris Urbino IV 12 CNG',
-    '3308': 'Solaris Urbino IV 12 CNG',
-    '3309': 'Solaris Urbino IV 12 CNG',
-    '3310': 'Solaris Urbino IV 12 CNG',
-    '3312': 'Solaris Urbino IV 12 CNG',
-    '3313': 'Solaris Urbino IV 12 CNG',
-    '3314': 'Solaris Urbino IV 12 CNG',
-    '3318': 'Solaris Urbino IV 12 CNG',
-    '3319': 'Solaris Urbino IV 12 CNG',
-    '3320': 'Solaris Urbino IV 12 CNG',
-    '3321': 'Solaris Urbino IV 18 CNG',
-    '3322': 'Solaris Urbino IV 12 CNG',
-    '3349': 'Solaris Urbino IV 12 CNG',
-    '3360': 'Solaris Urbino IV 18 CNG',
-    '3361': 'Solaris Urbino IV 18 CNG',
-    '3365': 'Solaris Urbino IV 18 CNG',
-    '3368': 'Solaris Urbino IV 18 CNG',
-    '3374': 'Solaris Urbino IV 12 CNG',
-    '3378': 'MAN A78 Lion\'s City LE EL293',
-    '3379': 'MAN A78 Lion\'s City LE EL293',
-    '3380': 'MAN A78 Lion\'s City LE EL293',
-    '3381': 'MAN A78 Lion\'s City LE EL293',
-    '3382': 'Solaris Urbino IV 18 CNG',
-    '3388': 'MAN A78 Lion\'s City LE EL293',
-    '3389': 'MAN A78 Lion\'s City LE EL293',
-    '3391': 'MAN A40 Lion\'s City GL NG323',
-    '3392': 'MAN A40 Lion\'s City GL NG323',
-    '3393': 'MAN A78 Lion\'s City LE EL293',
-    '3394': 'MAN A78 Lion\'s City LE EL293',
-    '3395': 'MAN A40 Lion\'s City GL NG323',
-    '3399': 'Solaris Urbino IV 18 CNG',
-    '3400': 'MAN A40 Lion\'s City GL NG323',
-    '3420': 'Solaris Urbino IV 12 CNG',
-    '3429': 'MAN A78 Lion\'s City LE EL293',
-    '3430': 'MAN A78 Lion\'s City LE EL293',
-    '3431': 'MAN A78 Lion\'s City LE EL293',
-    '3432': 'MAN A78 Lion\'s City LE EL293',
-    '3433': 'MAN A78 Lion\'s City LE EL293',
-    '3434': 'MAN A78 Lion\'s City LE EL293',
-    '3435': 'MAN A78 Lion\'s City LE EL293',
-    '3436': 'MAN A78 Lion\'s City LE EL293',
-    '3437': 'MAN A78 Lion\'s City LE EL293',
-    '3444': 'Solaris Urbino IV 18 CNG',
-    '3447': 'Solaris Urbino IV 12 CNG',
-    '3450': 'Solaris Urbino IV 12 CNG',
-    '3457': 'Solaris Urbino IV 12 CNG',
-    '3458': 'Solaris Urbino IV 12 CNG',
-    '3466': 'Solaris Urbino IV 18 CNG',
-    '3467': 'Solaris Urbino IV 18 CNG',
-    '3468': 'Solaris Urbino IV 18 CNG',
-    '3469': 'Solaris Urbino IV 12 CNG',
-    '3470': 'Solaris Urbino IV 18 CNG',
-    '3479': 'Solaris Urbino IV 18 CNG',
-    '3485': 'Solaris Urbino IV 18 CNG',
-    '3487': 'Solaris Urbino IV 18 CNG',
-    '3488': 'Solaris Urbino IV 18 CNG',
-    '3490': 'Solaris Urbino IV 18 CNG',
-    '3495': 'Solaris Urbino IV 18 CNG',
-    '3499': 'MAN A78 Lion\'s City LE EL293',
-    '3505': 'Solaris Urbino IV 12 CNG',
-    '3507': 'MAN A40 Lion\'s City GL NG323',
-    '3509': 'MAN A40 Lion\'s City GL NG323',
-    '3511': 'Solaris Urbino IV 12 CNG',
-    '3512': 'Solaris Urbino IV 12 CNG',
-    '3517': 'Solaris Urbino IV 18 CNG',
-    '3521': 'Solaris Urbino IV 12 CNG',
-    '3528': 'MAN A78 Lion\'s City LE EL293',
-    '3529': 'MAN A78 Lion\'s City LE EL293',
-    '3530': 'MAN A78 Lion\'s City LE EL293',
-    '3531': 'MAN A78 Lion\'s City LE EL293',
-    '3532': 'MAN A78 Lion\'s City LE EL293',
-    '3533': 'Solaris Urbino IV 12 CNG',
-    '3534': 'Solaris Urbino IV 12 CNG',
-    '3535': 'MAN A78 Lion\'s City LE EL293',
-    '3536': 'Solaris Urbino IV 18 CNG',
-    '3538': 'MAN A78 Lion\'s City LE EL293',
-    '3539': 'MAN A78 Lion\'s City LE EL293',
-    '3540': 'MAN A40 Lion\'s City GL NG323',
-    '3541': 'MAN A40 Lion\'s City GL NG323',
-    '3544': 'MAN A40 Lion\'s City GL NG323',
-    '3545': 'Solaris Urbino IV 12 CNG',
-    '3547': 'MAN A40 Lion\'s City GL NG323',
-    '3548': 'MAN A40 Lion\'s City GL NG323',
-    '3549': 'MAN A40 Lion\'s City GL NG323',
-    '3550': 'MAN A40 Lion\'s City GL NG323',
-    '3551': 'MAN A40 Lion\'s City GL NG323',
-    '3552': 'Solaris Urbino IV 12 CNG',
-    '3554': 'Solaris Urbino IV 12 CNG',
-    '3558': 'Solaris Urbino IV 12 CNG',
-    '3562': 'Solaris Urbino IV 12 CNG',
-    '3564': 'Solaris Urbino IV 18 CNG',
-    '3565': 'Solaris Urbino IV 12 CNG',
-    '3571': 'MAN A78 Lion\'s City LE EL293',
-    '3572': 'MAN A78 Lion\'s City LE EL293',
-    '3573': 'MAN A78 Lion\'s City LE EL293',
-    '3574': 'MAN A78 Lion\'s City LE EL293',
-    '3575': 'MAN A78 Lion\'s City LE EL293',
-    '3576': 'Solaris Urbino IV 12 CNG',
-    '3577': 'MAN A78 Lion\'s City LE EL293',
-    '3578': 'Solaris Urbino IV 12 CNG',
-    '3579': 'MAN A40 Lion\'s City GL NG323',
-    '3581': 'MAN A40 Lion\'s City GL NG323',
-    '3582': 'MAN A40 Lion\'s City GL NG323',
-    '3583': 'MAN A40 Lion\'s City GL NG323',
-    '3584': 'MAN A40 Lion\'s City GL NG323',
-    '3585': 'MAN A21 Lion\'s City NL283',
-    '3586': 'MAN A21 Lion\'s City NL283',
-    '3588': 'Solaris Urbino IV 12 CNG',
-    '3593': 'Solaris Urbino IV 12 CNG',
-    '3594': 'Solaris Urbino IV 12 CNG',
-    '3619': 'Solaris Urbino IV 12 CNG',
-    '3625': 'Solaris Urbino IV 18 CNG',
-    '3627': 'Solaris Urbino IV 18 CNG',
-    '3644': 'Solaris Urbino IV 18 CNG',
-    '3670': 'Solaris Urbino IV 12 CNG',
-    '3702': 'Solaris Urbino IV 18 CNG',
-    '3703': 'Solaris Urbino IV 18 CNG',
-    '3715': 'Solaris Urbino IV 12 CNG',
-    '3762': 'Solaris Urbino IV 18 CNG',
-    '3763': 'Solaris Urbino IV 12 CNG',
-    '3779': 'Solaris Urbino IV 12 CNG',
-    '3780': 'Solaris Urbino IV 12 CNG',
-    '3781': 'Solaris Urbino IV 12 CNG',
-    '3788': 'Solaris Urbino IV 12 CNG',
-    '3790': 'Solaris Urbino IV 12 CNG',
-    '3792': 'Solaris Urbino IV 18 CNG',
-    '3794': 'Solaris Urbino IV 12 CNG',
-    '3810': 'Solaris Urbino IV 12 CNG',
-    '3898': 'Solaris Urbino IV 12 CNG',
-    '3920': 'Solaris Urbino IV 18 CNG',
-    '3929': 'Solaris Urbino IV 18 CNG',
-    '3999': 'Solaris Urbino IV 18 CNG',
-    '5057': 'BMC Procity II 12 CNG',
-    '1350': 'Solaris Urbino IV 12 electric',
-    '1351': 'Solaris Urbino IV 12 electric',
-    '1352': 'Solaris Urbino IV 12 electric',
-    '1353': 'Solaris Urbino IV 12 electric',
-    '1354': 'Solaris Urbino IV 12 electric',
-    '1355': 'Solaris Urbino IV 12 electric',
-    '1356': 'Solaris Urbino IV 12 electric',
-    '1357': 'Solaris Urbino IV 12 electric',
-    '2410': 'Solaris Urbino IV 12 electric',
-    '2411': 'Solaris Urbino IV 12 electric',
-    '2413': 'Solaris Urbino IV 12 electric',
-    '2414': 'Solaris Urbino IV 12 electric',
-    '2416': 'Solaris Urbino IV 12 electric',
-    '2417': 'Solaris Urbino IV 12 electric',
-    '2418': 'Solaris Urbino IV 12 electric',
-
-    // ---- TROLLID ----
-    '345': 'Solaris Trollino III 12 AC',
-    '446': 'Solaris Trollino III 18 AC',
-    '6347': 'Škoda 32tr',
-    '6348': 'Škoda 32tr',
-    '6349': 'Škoda 32tr',
-    '6350': 'Škoda 32tr',
-    '6351': 'Škoda 32tr',
-    '6352': 'Škoda 32tr',
-    '6353': 'Škoda 32tr',
-    '6354': 'Škoda 32tr',
-    '6355': 'Škoda 32tr',
-    '6356': 'Škoda 32tr',
-    '6357': 'Škoda 32tr',
-    '6358': 'Škoda 32tr',
-    '6359': 'Škoda 32tr',
-    '6360': 'Škoda 32tr',
-    '6361': 'Škoda 32tr',
-    '6362': 'Škoda 32tr',
-    '6363': 'Škoda 32tr',
-    '6364': 'Škoda 32tr',
-    '6455': 'Škoda 33tr',
-    '6462': 'Škoda 33tr',
-    '6471': 'Škoda 33tr',
-    '6452': 'Škoda 33tr',
-    '6453': 'Škoda 33tr',
-    '6454': 'Škoda 33tr',
-    '6456': 'Škoda 33tr',
-    '6457': 'Škoda 33tr',
-    '6458': 'Škoda 33tr',
-    '6459': 'Škoda 33tr',
-    '6460': 'Škoda 33tr',
-    '6461': 'Škoda 33tr',
-    '6463': 'Škoda 33tr',
-    '6464': 'Škoda 33tr',
-    '6465': 'Škoda 33tr',
-    '6466': 'Škoda 33tr',
-    '6467': 'Škoda 33tr',
-    '6468': 'Škoda 33tr',
-    '6469': 'Škoda 33tr',
-    '6470': 'Škoda 33tr',
-    '6472': 'Škoda 33tr',
-    '6473': 'Škoda 33tr',
-
-    // ---- TRAMMID ----
-    '51': 'Tatra KT4SU',
-    '96': 'Tatra KT6TM',
-    '97': 'Tatra KT6TM',
-    '98': 'Tatra KT6TM',
-    '99': 'Tatra KT6TM',
-    '102': 'Tatra KT6TM',
-    '103': 'Tatra KT6TM',
-    '104': 'Tatra KT4SU',
-    '107': 'Tatra KT4SU',
-    '109': 'Tatra KT6TM',
-    '110': 'Tatra KT6TM',
-    '114': 'Tatra KT6TM',
-    '123': 'Tatra KT6TM',
-    '131': 'Tatra KT6TM',
-    '136': 'Tatra KT4TMR',
-    '138': 'Tatra KT4TMR',
-    '140': 'Tatra KT4TMR',
-    '141': 'Tatra KT4TMR',
-    '142': 'Tatra KT4TMR',
-    '148': 'Tatra KT6TM',
-    '157': 'Tatra KT4D',
-    '168': 'Tatra KT4TMR',
-    '177': 'Tatra KT4D',
-    '178': 'Tatra KT4D',
-    '181': 'Tatra KT4TM',
-    '182': 'Tatra KT4TM',
-    '501': 'CAF Urbos AXL',
-    '502': 'CAF Urbos AXL',
-    '503': 'CAF Urbos AXL',
-    '504': 'CAF Urbos AXL',
-    '505': 'CAF Urbos AXL',
-    '506': 'CAF Urbos AXL',
-    '507': 'CAF Urbos AXL',
-    '508': 'CAF Urbos AXL',
-    '509': 'CAF Urbos AXL',
-    '510': 'CAF Urbos AXL',
-    '511': 'CAF Urbos AXL',
-    '512': 'CAF Urbos AXL',
-    '513': 'CAF Urbos AXL',
-    '514': 'CAF Urbos AXL',
-    '515': 'CAF Urbos AXL',
-    '516': 'CAF Urbos AXL',
-    '517': 'CAF Urbos AXL',
-    '518': 'CAF Urbos AXL',
-    '519': 'CAF Urbos AXL',
-    '520': 'CAF Urbos AXL',
-    '521': 'PESA Twist 147N',
-    '522': 'PESA Twist 147N',
-    '523': 'PESA Twist 147N',
-    '524': 'PESA Twist 147N',
-    '525': 'PESA Twist 147N',
-    '526': 'PESA Twist 147N',
-    '527': 'PESA Twist 147N',
-    '528': 'PESA Twist 147N',
-    '529': 'PESA Twist 147N',
-    '530': 'PESA Twist 147N',
-    '531': 'PESA Twist 147N',
-    '532': 'PESA Twist 147N',
-    '533': 'PESA Twist 147N',
-    '534': 'PESA Twist 147N',
-    '535': 'PESA Twist 147N',
-    '536': 'PESA Twist 147N',
-    '537': 'PESA Twist 147N',
-    '538': 'PESA Twist 147N',
-    '539': 'PESA Twist 147N',
-    '540': 'PESA Twist 147N',
-    '541': 'PESA Twist 147N',
-    '542': 'PESA Twist 147N',
-    '543': 'PESA Twist 147N',
-
-  };
 
 
   // ---------- Map setup ----------
@@ -1421,12 +807,27 @@
   });
 
   var markerPane = map.getPane('markerPane');
+  var overlayPane = map.getPane('overlayPane');
+  var routePane = map.createPane('routePane'); routePane.style.zIndex = 350; // trajektoor - allpool peatuste täppe
+  var stopsPane = map.createPane('stopsPane'); stopsPane.style.zIndex = 410; // peatuste täpid - trajektoori peal
   map.on('zoomstart', function() {
     snapAllAnimationsToFinal();
     if (markerPane) markerPane.style.visibility = 'hidden';
+    if (overlayPane) overlayPane.style.visibility = 'hidden';
+    routePane.style.visibility = 'hidden';
+    stopsPane.style.visibility = 'hidden';
   });
   map.on('zoomend', function() {
     if (markerPane) markerPane.style.visibility = 'visible';
+    if (overlayPane) overlayPane.style.visibility = 'visible';
+    routePane.style.visibility = 'visible';
+    stopsPane.style.visibility = 'visible';
+    if (map.getZoom() < STOPS_MIN_ZOOM && map.hasLayer(stopsLayer)) {
+      map.removeLayer(stopsLayer);
+      stopsLayer.clearLayers();
+      stopMarkersById = {};
+      stopVisualMarkersById = {};
+    }
     reapplyAllFilters();
   });
   map.on('moveend', function() {
@@ -1435,8 +836,479 @@
 
   // ---------- State ----------
   var vehicles = {}; // id -> { marker, data, lat, lon, headingDeg, animState }
-  var filters = { reg: '', line: '', types: { '1': true, '2': true, '3': true, '7': true }, models: new Set() };
+  var filters = { reg: '', line: '', types: { '1': true, '2': true, '3': true, '7': true }, models: new Set(), modeLock: null };
+  var lineLockSaved = null; // peatuse liinivaliku eelne reg/line filtri seis, taastamiseks
+  var trajectoryActive = false; // kas hetkel on kuvatud liini trajektoor (peatusest või sõidukist valitud)
+  var routeGen = 0; // iga activateRoute/deactivateRoute suurendab seda - väldib vananenud async-vastuste rakendamist
+  var selectedStopMarker = null; // suurem punane markeeritud peatus, mille liin on valitud
   var workingSourceIndex = 0;
+
+  // ---------- Peatused ja liinid ----------
+  var stopsRenderer = L.canvas({ pane: 'stopsPane', padding: 0.5 });
+  var stopsLayer = L.layerGroup();
+  var stopMarkersById = {};       // id -> nähtamatu suurem "hit target" marker (popup, klikk)
+  var stopVisualMarkersById = {}; // id -> nähtav väike täpp (stiil muutub kaardirežiimi järgi)
+  var currentStopModeKey = 'dark';
+  var routeLayer = L.layerGroup().addTo(map);
+  var stopsFetchToken = 0;
+
+  function haversineMeters(lat1, lon1, lat2, lon2) {
+    var R = 6371000, rad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  async function arcgisFetch(layer, params) {
+    var qs = Object.keys(params).map(function(k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+    var res = await fetchWithTimeout(GIS_BASE + '/' + layer + '/query?' + qs, 9000);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
+  function refreshStopsForViewport() {
+    if (map.getZoom() < STOPS_MIN_ZOOM) {
+      if (map.hasLayer(stopsLayer)) map.removeLayer(stopsLayer);
+      stopsLayer.clearLayers();
+      stopMarkersById = {};
+      stopVisualMarkersById = {};
+      return;
+    }
+    if (!map.hasLayer(stopsLayer)) stopsLayer.addTo(map);
+    var b = map.getBounds();
+    var bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
+    var myToken = ++stopsFetchToken;
+    arcgisFetch(STOPS_LAYER, {
+      geometry: bbox, geometryType: 'esriGeometryEnvelope', inSR: 4326,
+      spatialRel: 'esriSpatialRelIntersects',
+      outFields: 'objectid,nimetus,liini_nr', returnGeometry: true, outSR: 4326, f: 'geojson'
+    }).then(function(gj) {
+      if (myToken !== stopsFetchToken || !gj || !gj.features) return;
+      gj.features.forEach(function(f) {
+        var id = f.properties.objectid;
+        if (stopMarkersById[id] || !f.geometry) return;
+        var lon = f.geometry.coordinates[0], lat = f.geometry.coordinates[1];
+        var name = f.properties.nimetus || 'Peatus';
+        var officialLines = (f.properties.liini_nr || '').split(',')
+          .map(function(s) { return s.trim(); }).filter(Boolean);
+        var style = STOP_STYLES[currentStopModeKey] || STOP_STYLES.dark;
+
+        // Nähtav täpp - puhtalt visuaalne, ei reageeri klikkidele
+        var visual = L.circleMarker([lat, lon], {
+          renderer: stopsRenderer,
+          radius: 4, weight: style.weight,
+          color: style.color,
+          fillColor: style.fillColor, fillOpacity: style.fillOpacity,
+          interactive: false
+        });
+        visual.addTo(stopsLayer);
+        stopVisualMarkersById[id] = visual;
+
+        // Nähtamatu, palju suurem "hit target" - see kannab popupi ja võtab klikid vastu,
+        // et peatusi oleks (eriti mobiilis) palju lihtsam tabada
+        var hit = L.circleMarker([lat, lon], {
+          renderer: stopsRenderer,
+          radius: 14, weight: 0,
+          color: 'transparent', opacity: 0,
+          fillColor: '#000', fillOpacity: 0.001
+        });
+        hit.bindPopup('<div class="stop-title">' + escapeHtml(name) + '</div><div class="stop-loading">Laen liine…</div>', { closeButton: false, minWidth: 200, maxWidth: 280, autoPanPadding: [20, 20] });
+        hit.stopObjectId = id;
+        hit.officialLines = officialLines;
+        hit.on('popupopen', function() { openStopPopup(hit, lat, lon, name); });
+        stopMarkersById[id] = hit;
+        hit.addTo(stopsLayer);
+      });
+    }).catch(function() { /* peatuste laadimine ebaõnnestus, jäta vaikimisi vahele */ });
+  }
+
+  function updateStopsStyleForMode(modeKey) {
+    currentStopModeKey = modeKey;
+    var style = STOP_STYLES[modeKey] || STOP_STYLES.dark;
+    for (var id in stopVisualMarkersById) {
+      stopVisualMarkersById[id].setStyle({
+        weight: style.weight,
+        color: style.color,
+        fillColor: style.fillColor,
+        fillOpacity: style.fillOpacity
+      });
+    }
+  }
+
+  var stopsRefreshTimer = null;
+  function scheduleStopsRefresh() {
+    clearTimeout(stopsRefreshTimer);
+    stopsRefreshTimer = setTimeout(refreshStopsForViewport, 120);
+  }
+
+  var stopLineCache = {}; // stopKey -> { bus:[...], troll:[...], tram:[...] }
+
+  function openStopPopup(marker, lat, lon, name) {
+    var key = lat.toFixed(5) + ',' + lon.toFixed(5);
+    if (stopLineCache[key]) {
+      renderStopLines(marker, lat, lon, name, stopLineCache[key]);
+      return;
+    }
+    var official = marker.officialLines && marker.officialLines.length ? marker.officialLines : null;
+    var officialSet = null;
+    if (official) {
+      officialSet = {};
+      official.forEach(function(nr) { officialSet[nr.toUpperCase()] = true; });
+    }
+    var modes = Object.keys(ROUTE_LAYERS);
+    Promise.all(modes.map(function(mode) {
+      return arcgisFetch(ROUTE_LAYERS[mode], {
+        geometry: lon + ',' + lat, geometryType: 'esriGeometryPoint', inSR: 4326,
+        spatialRel: 'esriSpatialRelIntersects', distance: 35, units: 'esriSRUnit_Meter',
+        outFields: 'liini_nr', returnGeometry: false, outSR: 4326, f: 'geojson'
+      }).then(function(gj) {
+        var seen = {}, list = [];
+        (gj.features || []).forEach(function(f) {
+          var nr = (f.properties.liini_nr || '').trim();
+          if (!nr || seen[nr]) return;
+          if (officialSet && !officialSet[nr.toUpperCase()]) return; // liin ei peatu siin, ainult läbib
+          seen[nr] = true;
+          list.push(nr);
+        });
+        list.sort(function(a, b) { return a.localeCompare(b, undefined, { numeric: true }); });
+        return list;
+      }).catch(function() { return []; });
+    })).then(function(results) {
+      var lines = { bus: results[modes.indexOf('bus')], troll: results[modes.indexOf('troll')], tram: results[modes.indexOf('tram')] };
+      stopLineCache[key] = lines;
+      renderStopLines(marker, lat, lon, name, lines);
+    });
+  }
+
+  function renderStopLines(marker, lat, lon, name, lines) {
+    var html = '<div class="stop-title">' + escapeHtml(name) + '</div>';
+    var total = lines.bus.length + lines.troll.length + lines.tram.length;
+    if (!total) {
+      html += '<div class="stop-empty">Läbivaid liine ei leitud.</div>';
+    } else {
+      html += '<div class="stop-lines">';
+      ['bus', 'troll', 'tram'].forEach(function(mode) {
+        lines[mode].forEach(function(nr) {
+          html += '<span class="line-pill" style="background:' + ROUTE_COLORS[mode] + '" data-mode="' + mode + '" data-line="' + escapeHtml(nr) + '">' + escapeHtml(nr) + '</span>';
+        });
+      });
+      html += '</div>';
+    }
+    marker.setPopupContent(html);
+    var el = marker.getPopup().getElement();
+    if (!el) return;
+    el.querySelectorAll('.line-pill').forEach(function(pill) {
+      pill.addEventListener('click', function(e) {
+        e.stopPropagation();
+        selectStopLine(marker, lat, lon, name, pill.getAttribute('data-mode'), pill.getAttribute('data-line'), lines);
+      });
+    });
+  }
+
+  function selectStopLine(marker, lat, lon, name, mode, lineNr, lines) {
+    marker.closePopup();
+    activateRoute(mode, lineNr, { lat: lat, lon: lon, name: name });
+  }
+
+  // Peidab/tühjendab ETA paneeli. Kasutatakse trajektoori sulgemisel ja siis, kui sõiduplaani
+  // andmetest väljumisaega ei leitud - sel juhul EI näidata mingit teadet, paneel lihtsalt ei ilmu.
+  function setEtaPanel(data) {
+    var el = document.getElementById('etaPanel');
+    el.classList.remove('show');
+    el.innerHTML = '';
+  }
+
+  function setEtaPanelSchedule(ctx, times) {
+    var el = document.getElementById('etaPanel');
+    var chips = times.map(function(t) {
+      return '<span class="eta-chip' + (t.delayed ? ' delayed' : '') + '">' + escapeHtml(t.clock) + '</span>';
+    }).join('');
+    var mins = times[0] ? times[0].minutesUntil : null;
+    var minsText = mins === 0 ? 'Saabub kohe.' : (mins != null ? 'Saabub ' + mins + ' minuti pärast.' : '');
+    var minsHtml = minsText ? '<div class="eta-mins">' + escapeHtml(minsText) + '</div>' : '';
+    el.innerHTML =
+      '<div class="eta-line">Liin ' + escapeHtml(ctx.lineNr) + '</div>' +
+      '<div class="eta-stop">Peatuses ' + escapeHtml(ctx.stopName) + '</div>' +
+      '<div class="eta-times">' + chips + '</div>' +
+      minsHtml;
+    el.classList.add('show');
+  }
+
+  function setEtaPanelEmpty(ctx) {
+    var el = document.getElementById('etaPanel');
+    el.innerHTML =
+      '<div class="eta-line">Liin ' + escapeHtml(ctx.lineNr) + '</div>' +
+      '<div class="eta-stop">Peatuses ' + escapeHtml(ctx.stopName) + '</div>' +
+      '<div class="eta-empty">Hetkel andmed puuduvad.</div>';
+    el.classList.add('show');
+  }
+
+  // ---------- Sõiduplaani (SIRI) põhine ETA - täpsed kellaajad GPS-hinnangu asemel ----------
+  // transport.tallinn.ee/data/stops.txt sisaldab kõiki peatusi koos numbrilise "SiriID"-ga (osal
+  // peatustest see puudub - siis pole neil reaalajas saabumisaegu). Tegelik formaat (kinnitatud
+  // otse failist): semikooloniga eraldatud, PÄISEGA "ID;SiriID;Lat;Lng;Stops;Name;Info;Street;...",
+  // kus Lat/Lng on kraadid korrutatud 100000-ga. ArcGIS-i peatusekihi "objectid" EI VASTA sellele
+  // SiriID-le, seega tuleb klõpsatud peatuse jaoks lähim kirje siit koordinaadi järgi leida.
+  var siriStopsIndex = null;   // [{ siriId, lat, lon, name }]
+  var siriStopsPromise = null;
+  var siriScheduleCache = {};
+
+  function normalizeCoord(raw, min, max) {
+    var candidates = [raw, raw / 10000, raw / 100000, raw / 1000000];
+    for (var i = 0; i < candidates.length; i++) {
+      if (candidates[i] >= min && candidates[i] <= max) return candidates[i];
+    }
+    return null;
+  }
+
+  function parseStopsTxt(text) {
+    var lines = text.split('\n');
+    if (!lines.length) return [];
+    var header = lines[0].replace(/\r$/, '').split(';').map(function(h) { return h.trim().toLowerCase(); });
+    var idxSiri = header.indexOf('siriid');
+    var idxLat = header.indexOf('lat');
+    var idxLng = header.indexOf('lng');
+    var idxName = header.indexOf('name');
+    if (idxSiri === -1) idxSiri = 1;
+    if (idxLat === -1) idxLat = 2;
+    if (idxLng === -1) idxLng = 3;
+
+    var out = [];
+    for (var i = 1; i < lines.length; i++) {
+      var raw = lines[i].replace(/\r$/, '');
+      if (!raw) continue;
+      var fields = raw.split(';');
+      var siriId = parseInt(fields[idxSiri], 10);
+      var lat = normalizeCoord(parseFloat(fields[idxLat]), 55, 60);
+      var lon = normalizeCoord(parseFloat(fields[idxLng]), 20, 29);
+      if (!isFinite(siriId) || lat === null || lon === null) continue;
+      out.push({ siriId: siriId, lat: lat, lon: lon, name: idxName !== -1 ? fields[idxName] : '' });
+    }
+    return out;
+  }
+
+  function loadSiriStops() {
+    if (siriStopsPromise) return siriStopsPromise;
+    siriStopsPromise = fetchTextFromSources(buildProxyList(STOPS_TXT_URL), 14000)
+      .then(function(text) {
+        var parsed = parseStopsTxt(text);
+        if (!parsed.length) throw new Error('Peatuste nimekiri oli tühi');
+        siriStopsIndex = parsed;
+        return parsed;
+      })
+      .catch(function(e) {
+        siriStopsPromise = null;
+        throw e;
+      });
+    return siriStopsPromise;
+  }
+
+  function findSiriStopId(lat, lon) {
+    if (!siriStopsIndex || !siriStopsIndex.length) return null;
+    var best = null, bestDist = Infinity;
+    for (var i = 0; i < siriStopsIndex.length; i++) {
+      var s = siriStopsIndex[i];
+      var d = haversineMeters(lat, lon, s.lat, s.lon);
+      if (d < bestDist) { bestDist = d; best = s; }
+    }
+    return (best && bestDist <= SIRI_STOP_MATCH_METERS) ? best.siriId : null;
+  }
+
+  var SIRI_TYPE_RE = { bus: /bus/i, troll: /trol/i, tram: /tram/i };
+  function parseSiriDepartures(text) {
+    var out = [];
+    text.split('\n').forEach(function(raw) {
+      raw = raw.replace(/\r$/, '').trim();
+      if (!raw) return;
+      if (/^transport\s*,/i.test(raw)) return;
+      var parts = raw.split(',');
+      if (parts.length < 4) return;
+      var expectedSec = parseInt(parts[2], 10);
+      var aimedSec = parseInt(parts[3], 10);
+      if (!isFinite(expectedSec)) return;
+      out.push({
+        type: (parts[0] || '').trim(),
+        line: (parts[1] || '').trim(),
+        expectedSec: expectedSec,
+        aimedSec: isFinite(aimedSec) ? aimedSec : expectedSec,
+        dest: parts.slice(4).join(',').trim()
+      });
+    });
+    return out;
+  }
+
+  function secondsToClock(sec) {
+    sec = ((Math.round(sec) % 86400) + 86400) % 86400;
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+
+  function fetchSiriScheduleTimes(mode, lineNr, lat, lon) {
+    return loadSiriStops().then(function() {
+      var siriId = findSiriStopId(lat, lon);
+      if (!siriId) throw new Error('Peatust ei leitud sõiduplaani andmestikust');
+      var key = siriId + '|' + mode + '|' + lineNr;
+      var cached = siriScheduleCache[key];
+      var now = Date.now();
+      if (cached && (now - cached.time) < SIRI_SCHEDULE_TTL_MS) return cached.promise;
+      var url = SIRI_DEPARTURES_URL + '?stopid=' + encodeURIComponent(siriId) + '&_=' + now;
+      var p = fetchTextFromSources(buildProxyList(url), 12000).then(function(text) {
+        var all = parseSiriDepartures(text);
+        var typeRe = SIRI_TYPE_RE[mode];
+        var wantLine = String(lineNr).trim().toUpperCase();
+        var matches = all.filter(function(d) {
+          var lineOk = d.line.toUpperCase() === wantLine;
+          var typeOk = !d.type || !typeRe || typeRe.test(d.type);
+          return lineOk && typeOk;
+        });
+        if (!matches.length) throw new Error('Liini ' + lineNr + ' väljumisaegu ei leitud');
+        matches.sort(function(a, b) { return a.expectedSec - b.expectedSec; });
+        var nowSec = (function() { var d = new Date(); return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds(); })();
+        return matches.slice(0, 3).map(function(m) {
+          return {
+            clock: secondsToClock(m.expectedSec),
+            dest: m.dest,
+            delayed: (m.expectedSec - m.aimedSec) > 90,
+            minutesUntil: Math.round((((m.expectedSec - nowSec) % 86400) + 86400) % 86400 / 60)
+          };
+        });
+      });
+      siriScheduleCache[key] = { time: now, promise: p };
+      p.catch(function() { delete siriScheduleCache[key]; });
+      return p;
+    });
+  }
+
+  // ---------- Liini-trajektoori aktiveerimine/deaktiveerimine ----------
+  var activeEtaContext = null;
+
+  function refreshActiveEtaPanel() {
+    if (!activeEtaContext) return;
+    var ctx = activeEtaContext;
+    fetchSiriScheduleTimes(ctx.mode, ctx.lineNr, ctx.lat, ctx.lon).then(function(times) {
+      if (activeEtaContext !== ctx) return;
+      setEtaPanelSchedule(ctx, times);
+    }).catch(function(e) {
+      if (activeEtaContext !== ctx) return;
+      setEtaPanelEmpty(ctx);
+    });
+  }
+
+  function activateRoute(mode, lineNr, stopInfo) {
+    var myGen = ++routeGen;
+    applyLineLock(mode, lineNr);
+    trajectoryActive = true;
+    setShowAllBtnState(true);
+    return drawRoute(mode, lineNr).then(function() {
+      if (myGen !== routeGen) return; // vahepeal on juba deaktiveeritud või uus liin valitud - ignoreeri seda vananenud tulemust
+      if (stopInfo) {
+        setSelectedStopMarker(stopInfo.lat, stopInfo.lon);
+        activeEtaContext = { mode: mode, lineNr: lineNr, lat: stopInfo.lat, lon: stopInfo.lon, stopName: stopInfo.name };
+        refreshActiveEtaPanel();
+      } else {
+        clearSelectedStopMarker();
+        activeEtaContext = null;
+        setEtaPanel(null);
+      }
+      reapplyAllFilters(); // kaitseks: kindlustab, et ainult valitud liini sõidukid on nähtaval ka pärast trajektoori laadimist
+    });
+  }
+
+  function deactivateRoute() {
+    routeGen++; // tühistab kõik pooleliolevad activateRoute lubadused
+    clearRoute();
+    clearSelectedStopMarker();
+    activeEtaContext = null;
+    setEtaPanel(null);
+    clearLineLock();
+    trajectoryActive = false;
+    setShowAllBtnState(false);
+  }
+
+  var selectedStopRenderer = L.svg({ pane: 'stopsPane' });
+  function setSelectedStopMarker(lat, lon) {
+    clearSelectedStopMarker();
+    selectedStopMarker = L.circleMarker([lat, lon], {
+      renderer: selectedStopRenderer,
+      radius: 7,
+      weight: 2,
+      color: '#ffffff',
+      fillColor: '#ff4d4d',
+      fillOpacity: 0.95,
+      interactive: false,
+      className: 'selected-stop-marker'
+    }).addTo(map);
+  }
+
+  function clearSelectedStopMarker() {
+    if (selectedStopMarker) { map.removeLayer(selectedStopMarker); selectedStopMarker = null; }
+  }
+
+  function setShowAllBtnState(isTrajectoryActive) {
+    var btn = document.getElementById('showAllBtn');
+    if (!btn) return;
+    if (isTrajectoryActive) {
+      btn.textContent = 'Sulge trajektoor';
+      btn.classList.add('trajectory-active');
+    } else {
+      btn.textContent = 'Kuva kõik sõidukid';
+      btn.classList.remove('trajectory-active');
+    }
+  }
+
+  // Trajektoori joonistamiseks kasutatakse alati SVG-renderdajat, MITTE canvast (isegi kui kaart
+  // ise on preferCanvas:true). Kaardi vaikimisi canvas-renderdaja luuakse laisalt alles esimesel
+  // kasutuskorral ja tema <canvas> element jääb DOM-i igaveseks (ka pärast routeLayer.clearLayers()) -
+  // see kate jäi peatuste "hit target" canvase PEALE ja blokeeris jäädavalt kõik hilisemad klikid
+  // peatustele (nii täpselt tekkiski see viga: pärast "Sulge trajektoor" vajutamist ei saanud enam
+  // ÜHTEGI peatust klikkida, sest see nähtamatu canvas jäi kaardi peale püsima). SVG-renderdaja juur
+  // ei püüa klikke (ainult reaalsed .leaflet-interactive path'id seda teevad), seega ei teki sellist
+  // "nähtamatut kihti", mis kliki jäädavalt neelaks. Liini joont pole vaja klikitavaks teha, seega
+  // lisaks kindluse mõttes interactive:false.
+  var routeSvgRenderer = L.svg({ pane: 'routePane' });
+  var currentRouteGeom = null; // [[ [lat,lon], [lat,lon], ... ], ...] iga LineString'i kohta - ETA arvutuseks
+
+  function extractLineStrings(geometry) {
+    if (!geometry) return [];
+    if (geometry.type === 'LineString') {
+      return [geometry.coordinates.map(function(c) { return [c[1], c[0]]; })];
+    }
+    if (geometry.type === 'MultiLineString') {
+      return geometry.coordinates.map(function(line) {
+        return line.map(function(c) { return [c[1], c[0]]; });
+      });
+    }
+    return [];
+  }
+
+  function drawRoute(mode, lineNr) {
+    routeLayer.clearLayers();
+    currentRouteGeom = null;
+    var whereVal = String(lineNr).replace(/'/g, "''");
+    return arcgisFetch(ROUTE_LAYERS[mode], {
+      where: "liini_nr='" + whereVal + "'",
+      outFields: 'liini_nr', returnGeometry: true, outSR: 4326, f: 'geojson'
+    }).then(function(gj) {
+      var geom = [];
+      (gj.features || []).forEach(function(f) {
+        L.geoJSON(f, {
+          renderer: routeSvgRenderer,
+          interactive: false,
+          style: { color: ROUTE_COLORS[mode], weight: 4, opacity: 0.85 }
+        }).addTo(routeLayer);
+        geom = geom.concat(extractLineStrings(f.geometry));
+      });
+      currentRouteGeom = geom;
+    }).catch(function() { /* trajektoori ei õnnestunud laadida */ });
+  }
+
+  function clearRoute() { routeLayer.clearLayers(); currentRouteGeom = null; }
+
+  map.on('zoomend moveend', scheduleStopsRefresh);
+  scheduleStopsRefresh();
 
   function shapeSVG(color, hasHeading) {
     if (!hasHeading) {
@@ -1503,6 +1375,10 @@
     var name = isSub ? TROLL_SUBSTITUTE_LABEL : (TYPE_NAMES[d.type] || 'Sõiduk');
     var dest = d.destination && d.destination.trim() !== '' ? d.destination.trim() : '—';
     var model = d.model || 'Teadmata';
+    var mode = TYPE_TO_MODE[d.type];
+    var lineLink = mode
+      ? '<span class="veh-line-link" data-mode="' + mode + '" data-line="' + escapeHtml(d.line) + '">' + escapeHtml(d.line) + '</span>'
+      : escapeHtml(d.line);
     var img = '';
     if (model !== 'Teadmata') {
       var imgSrc = 'Pildid/' + encodeURIComponent(model) + '.png';
@@ -1515,18 +1391,59 @@
     }
     return '' +
       img +
-      '<div class="popup-title"><span class="dot" style="background:' + color + '; box-shadow: 0 0 8px ' + color + ', 0 0 3px ' + color + ';"></span>' + name + ' &middot; liin ' + d.line + '</div>' +
+      '<div class="popup-title"><span class="dot" style="background:' + color + '; box-shadow: 0 0 8px ' + color + ', 0 0 3px ' + color + ';"></span>' + name + ' &middot; liin ' + lineLink + '</div>' +
       '<div class="popup-row"><span>Mudel</span><b>' + escapeHtml(model) + '</b></div>' +
       '<div class="popup-row"><span>Suund / lõpp-peatus</span><b>' + escapeHtml(dest) + '</b></div>' +
       '<div class="popup-row"><span>Registrinumber</span><b>' + escapeHtml(d.reg) + '</b></div>';
   }
 
+  function wireVehiclePopupLineLink(marker) {
+    var popup = marker.getPopup();
+    var el = popup && popup.getElement();
+    if (!el) return;
+    var link = el.querySelector('.veh-line-link');
+    if (!link) return;
+    link.onclick = function(e) {
+      e.stopPropagation();
+      var lineMode = link.getAttribute('data-mode');
+      var lineNr = link.getAttribute('data-line');
+      marker.closePopup();
+      activateRoute(lineMode, lineNr, null);
+    };
+  }
+
   function passesFilter(d) {
+    if (filters.modeLock) {
+      // Peatusest liini valimisel loevad AINULT sõiduki liik ja liininumber -
+      // muud varem seatud filtrid (tüübikiibid, reg, mudel) ei tohi seda enam varjutada.
+      if (TYPE_TO_MODE[d.type] !== filters.modeLock) return false;
+      if (filters.line && d.line.toLowerCase() !== filters.line) return false;
+      return true;
+    }
     if (!filters.types[d.type]) return false;
     if (filters.reg && d.reg.toLowerCase() !== filters.reg) return false;
     if (filters.line && d.line.toLowerCase() !== filters.line) return false;
     if (filters.models.size > 0 && !filters.models.has(d.model)) return false;
     return true;
+  }
+
+  // Kui peatuses valitakse üks liin, näidatakse kaardil ainult selle liini sõidukeid.
+  function applyLineLock(mode, lineNr) {
+    if (!lineLockSaved) {
+      lineLockSaved = { line: filters.line, lineInputVal: lineInput.value };
+    }
+    filters.line = String(lineNr).trim().toLowerCase();
+    filters.modeLock = mode;
+    lineInput.value = lineNr;
+    reapplyAllFilters();
+  }
+  function clearLineLock() {
+    if (!lineLockSaved) return;
+    filters.line = lineLockSaved.line;
+    lineInput.value = lineLockSaved.lineInputVal;
+    filters.modeLock = null;
+    lineLockSaved = null;
+    reapplyAllFilters();
   }
 
   var viewportPadded = null; // vahemällu, uuendatakse move/zoom korral
@@ -1536,6 +1453,7 @@
 
   function shouldRender(d) {
     if (!passesFilter(d)) return false;
+    if (filters.reg) return true; // valitud sõiduk jääb alati kuvatuks, ka ekraanist väljas olles
     if (map.getZoom() < ZOOM_DETAIL_THRESHOLD) return true;
     if (!viewportPadded) refreshViewportCache();
     return viewportPadded.contains([d.lat, d.lon]);
@@ -1609,6 +1527,7 @@
       var icon = makeIcon(iconColor, d.headingNum);
       var marker = L.marker([d.lat, d.lon], { icon: icon, riseOnHover: true });
       marker.bindPopup(popupHTML(d), { closeButton: false, minWidth: 220, maxWidth: 360, autoPanPadding: [20, 20] });
+      marker.on('popupopen', function() { wireVehiclePopupLineLink(marker); });
       if (visible) marker.addTo(map);
       vehicles[id] = {
         marker: marker,
@@ -1625,6 +1544,7 @@
     existing.data = d;
     if (existing.marker.isPopupOpen()) {
       existing.marker.setPopupContent(popupHTML(d));
+      wireVehiclePopupLineLink(existing.marker);
     } else {
       existing.marker.getPopup() && existing.marker.setPopupContent(popupHTML(d));
     }
@@ -1738,6 +1658,41 @@
     statusText.textContent = msg;
   }
 
+  // ---------- Ülemise paneeli järgi paigutatavad hõljuvad kastid (viga + ETA) ----------
+  // Ülemine paneel võib mähkuda mitmele reale (nt kitsal ekraanil või pika staatuseteksti korral),
+  // seega ei saa viga/ETA kasti asukohta fikseerida - need järgivad alati paneeli tegelikku kõrgust.
+  (function setupFloatingPanelPositioning() {
+    var panelEl = document.getElementById('panel');
+    var etaPanelEl = document.getElementById('etaPanel');
+    var gap = 14;
+
+    function reposition() {
+      var rect = panelEl.getBoundingClientRect();
+      var left = rect.left + 'px';
+      errorBanner.style.left = left;
+      etaPanelEl.style.left = left;
+      var top = rect.bottom + gap;
+      errorBanner.style.top = top + 'px';
+      if (errorBanner.classList.contains('show')) {
+        top = errorBanner.getBoundingClientRect().bottom + gap;
+      }
+      etaPanelEl.style.top = top + 'px';
+    }
+
+    if (window.ResizeObserver) {
+      new ResizeObserver(reposition).observe(panelEl);
+      new ResizeObserver(reposition).observe(errorBanner);
+    } else {
+      window.addEventListener('resize', reposition);
+    }
+    window.addEventListener('resize', reposition);
+    window.addEventListener('load', reposition);
+    setTimeout(reposition, 300);
+    setTimeout(reposition, 1000);
+    window._repositionFloatingPanels = reposition;
+    reposition();
+  })();
+
   function isValidGPSText(text) {
     if (!text) return false;
     var lines = text.split('\n');
@@ -1763,6 +1718,31 @@
   }
 
   function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  // Üldine "proovi mitut allikat korraga" tekstipäring - kõiki allikaid (otse + eri CORS-proxy'sid)
+  // päritakse paralleelselt ja kasutatakse esimest, mis õnnestub. Nii ei liideta iga allika
+  // timeout'e kokku (mis muutis paneeli varem ebamõistlikult aeglaseks/justkui "kinni jäänuks"),
+  // vaid halvimal juhul ollakse piiratud ühe timeout'i pikkusega.
+  function fetchTextFromSources(sources, timeoutMs) {
+    return new Promise(function(resolve, reject) {
+      var remaining = sources.length;
+      var lastErr = null;
+      var settled = false;
+      sources.forEach(function(src) {
+        fetchWithTimeout(src, timeoutMs).then(function(res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.text();
+        }).then(function(text) {
+          if (!text || !text.trim()) throw new Error('Tühi vastus');
+          if (!settled) { settled = true; resolve(text); }
+        }).catch(function(e) {
+          lastErr = e;
+          remaining--;
+          if (remaining === 0 && !settled) reject(lastErr || new Error('Ei õnnestunud laadida'));
+        });
+      });
+    });
+  }
 
   async function tryFetchSource(idx) {
     var res = await fetchWithTimeout(SOURCES[idx], FETCH_TIMEOUT_MS);
@@ -1809,6 +1789,7 @@
       setStatus('ok', 'LIVE \u00b7 ' + total + ' sõidukit (' + breakdown + ') \u00b7 ' + hh + ':' + mm + ':' + ss);
       updateNightBusChip(counts['7']);
       updateModelAvailability();
+      refreshActiveEtaPanel();
     } catch (e) {
       setStatus('bad', 'Ühendus ebaõnnestus');
       errorBanner.classList.add('show');
@@ -1860,6 +1841,15 @@
   // mitte ei lülitata seda lihtsalt teiste seast välja. "Kuva kõik sõidukid" taastab kõik korraga.
   var CHIP_TYPE_MAP = { chipTroll: '1', chipTram: '3', chipBus: '2', chipNight: '7' };
 
+  function resetTypeChipsToDefault() {
+    filters.types = { '1': true, '2': true, '3': true, '7': true };
+    ['chipTroll', 'chipBus', 'chipNight', 'chipTram'].forEach(function(id) {
+      var chip = document.getElementById(id);
+      chip.querySelector('input').checked = true;
+      chip.classList.remove('off');
+    });
+  }
+
   function wireChip(chipId, typeKey) {
     var chip = document.getElementById(chipId);
     chip.addEventListener('click', function(e) {
@@ -1872,6 +1862,7 @@
         c.querySelector('input').checked = isActive;
         c.classList.toggle('off', !isActive);
       });
+      clearModelSelection();
       reapplyAllFilters();
       autoSelectIfSingleMatch();
     });
@@ -1881,7 +1872,13 @@
   wireChip('chipBus', '2');
   wireChip('chipNight', '7');
 
-  document.getElementById('showAllBtn').addEventListener('click', showAll);
+  document.getElementById('showAllBtn').addEventListener('click', function() {
+    if (trajectoryActive) {
+      deactivateRoute();
+    } else {
+      showAll();
+    }
+  });
 
   // ---------- Kaardirežiimid: satelliit / tume / hele, tsükliliselt ühe nupuga ----------
   var MAP_MODES = [
@@ -1903,6 +1900,7 @@
     document.body.classList.toggle('satellite-mode', mode.key === 'satellite');
     document.getElementById('mapModeBtn').textContent = mode.label;
     currentModeIndex = idx;
+    updateStopsStyleForMode(mode.key);
   }
 
   document.getElementById('mapModeBtn').addEventListener('click', function() {
@@ -1914,16 +1912,18 @@
   });
 
   function showAll() {
+    clearRoute();
+    clearSelectedStopMarker();
+    setEtaPanel(null);
+    trajectoryActive = false;
+    setShowAllBtnState(false);
     regInput.value = '';
     lineInput.value = '';
     filters.reg = '';
     filters.line = '';
-    filters.types = { '1': true, '2': true, '3': true, '7': true };
-    ['chipTroll','chipBus','chipNight','chipTram'].forEach(function(id){
-      var chip = document.getElementById(id);
-      chip.querySelector('input').checked = true;
-      chip.classList.remove('off');
-    });
+    filters.modeLock = null;
+    lineLockSaved = null;
+    resetTypeChipsToDefault();
     clearModelSelection();
     reapplyAllFilters();
   }
@@ -1951,8 +1951,12 @@
     modelDropdownList.querySelectorAll('input[data-model]').forEach(function(box) {
       box.addEventListener('change', function() {
         var model = box.getAttribute('data-model');
-        if (box.checked) filters.models.add(model);
-        else filters.models.delete(model);
+        if (box.checked) {
+          filters.models.add(model);
+          resetTypeChipsToDefault();
+        } else {
+          filters.models.delete(model);
+        }
         updateModelButtonLabel();
         reapplyAllFilters();
         autoSelectIfSingleMatch();
