@@ -360,11 +360,12 @@
   #etaPanel.show { display:block; animation: fadeUpIn .3s ease; }
   #etaPanel .eta-line { font-size: 14px; font-weight: 700; color: var(--text); }
   #etaPanel .eta-stop { margin-top: 3px; color: var(--text-dim); }
+  #etaPanel .eta-reg-row { margin-top: 1px; font-size: 11px; }
   #etaPanel .eta-times { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; }
   #etaPanel .eta-chip { font-weight: 700; color: var(--text); background: color-mix(in srgb, currentColor 14%, transparent); border: 1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 8px; padding: 2px 8px; font-size: 13px; }
   #etaPanel .eta-chip.delayed { color: #ffb84d; }
   #etaPanel .eta-dest { margin-top: 2px; color: var(--text-dim); font-size: 11px; }
-  #etaPanel .eta-empty { font-size: 14px; font-weight: 700; color: var(--text); }
+  #etaPanel .eta-empty { margin-top: 6px; font-size: 12px; font-weight: 500; color: var(--text-dim); }
   #etaPanel .eta-mins { margin-top: 5px; color: var(--text-dim); font-size: 11px; }
 
   #secondaryControls { display: contents; }
@@ -384,9 +385,19 @@
       align-items: flex-start;
       gap: 8px;
     }
+    /* Mobiilis pole "Mudel" nupul selja taga #panel'i taustavärvi, seetõttu vajab ta ise piisavalt
+       kontrastset tausta ülal kaardi peal - aga see peab siiski järgima heledat/tumedat režiimi
+       samamoodi nagu iga teine nupp, mitte olema alati sunnitud tume+valge tekstiga. */
     #secondaryControls #modelFilterBtn {
       background: var(--popup-dark-bg) !important;
       color: #e7eaee !important;
+    }
+    body.light-mode #secondaryControls #modelFilterBtn {
+      background: rgba(255,255,255,0.75) !important;
+      color: var(--text-dim) !important;
+    }
+    #secondaryControls #modelFilterBtn.active-filter {
+      color: var(--tlt-roh) !important;
     }
     #secondaryControls #modelDropdown {
       top: auto;
@@ -417,7 +428,7 @@
     top: calc(100% + 6px);
     left:0;
     z-index: 1100;
-    background: var(--glass-tint-strong);
+    background: var(--glass-tint);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     width: 260px;
@@ -458,13 +469,14 @@
     display:flex;
     align-items:center;
     gap: 8px;
-    font-size: 12.5px;
-    padding: 4px 2px;
+    font-size: 12px;
+    padding: 4px 6px;
+    margin: 0 -6px;
     cursor: pointer;
     border-radius: 6px;
+    transition: background .15s ease, opacity .2s ease, color .2s ease;
   }
-  #modelDropdown label:hover { background: rgba(255,255,255,0.1); }
-  #modelDropdown label { transition: background .15s ease, opacity .2s ease, color .2s ease; }
+  #modelDropdown label:hover { background: var(--glass-tint-strong); }
   #modelDropdown label .model-name { flex: 1 1 auto; }
   #modelDropdown label .model-count {
     flex: none;
@@ -580,7 +592,18 @@
   #chipNight .dot { box-shadow: 0 0 8px var(--night), 0 0 2px var(--night); }
   #statusDot.ok { box-shadow: 0 0 10px #ff4d4d, 0 0 3px #ff4d4d; }
 
-  body.light-mode { --text: #14181f; --text-dim: #40474f; }
+  body.light-mode {
+    --text: #14181f; --text-dim: #40474f;
+    /* Heledal taustal on valge toonusega "klaas" hover/highlight efektid praktiliselt nähtamatud
+       (nt sõiduki ajakava peatuste hover, nupu-hoveri taust) - heledas režiimis kasutatakse
+       hoopis musta toonust, mis annab sama "tumedam/heledam" kontrastiefekti, aga õiges suunas. */
+    --glass-tint: rgba(0,0,0,0.05);
+    --glass-tint-strong: rgba(0,0,0,0.12);
+  }
+  /* Samal põhjusel - valge tekstihoover popup/paneeli sisus poleks heledal taustal näha */
+  body.light-mode .veh-line-link:hover,
+  body.light-mode .route-eta b,
+  body.light-mode #etaPanel .veh-reg-link:hover { color: #000; }
   body.light-mode #panel,
   body.light-mode #mapModeBtn,
   body.light-mode #errorBanner,
@@ -632,6 +655,28 @@
   }
   body.light-mode .field input[type="text"] { border-color: rgba(0,0,0,0.22); }
   body.light-mode .brand { border-right-color: rgba(0,0,0,0.22); }
+  body.light-mode #etaPanel .tt-row { border-bottom-color: rgba(0,0,0,0.15); }
+
+  /* helel kaardil on hele kollane liiga madala kontrastiga - kasuta tumedamat merevaigukollast tooni,
+     nii number, ääred kui taust (kõik tuletatud currentColor'ist) lähevad automaatselt tumedamaks */
+  body.light-mode #etaPanel .eta-chip.delayed { color: #a15a00; }
+
+  /* ---------- Sõiduki trajektoori ajakava paneel ---------- */
+  #etaPanel .eta-timetable { margin-top: 6px; display:flex; flex-direction:column; gap:1px; max-height: 260px; overflow-y:auto; overflow-x:hidden; padding-right:4px; }
+  #etaPanel .eta-timetable::-webkit-scrollbar { width: 6px; }
+  #etaPanel .eta-timetable::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
+  body.light-mode #etaPanel .eta-timetable::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.25); }
+  #etaPanel .tt-row { display:flex; align-items:baseline; justify-content:space-between; gap:10px; font-size:12px; padding:4px 0; border-bottom: 1px solid var(--glass-border); }
+  #etaPanel .tt-row:last-child { border-bottom: none; }
+  #etaPanel .tt-row.clickable { cursor:pointer; margin:0 -6px; padding:4px 6px; border-radius:6px; transition: background .15s ease; }
+  #etaPanel .tt-row.clickable:hover { background: var(--glass-tint-strong); }
+  #etaPanel .tt-row.clickable:active { background: var(--glass-tint); }
+  #etaPanel .veh-reg-link { cursor:pointer; text-decoration: underline dotted; text-underline-offset: 3px; color: var(--text); transition: color .15s ease; }
+  #etaPanel .veh-reg-link:hover { color: #fff; }
+  #etaPanel .tt-stop { color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex: 1 1 auto; min-width: 0; }
+  #etaPanel .tt-time { color: var(--text); font-weight:700; flex:none; }
+  #etaPanel .tt-time.tt-missing { color: var(--text-dim); font-weight:400; }
+  #etaPanel.eta-panel-wide { width: 250px; max-width: calc(100vw - 28px); }
 </style>
 </head>
 <body>
@@ -739,7 +784,7 @@
   var GIS_BASE = 'https://gis.tallinn.ee/arcgis/rest/services/yhistransport/MapServer';
   var STOPS_LAYER = 0;
   var ROUTE_LAYERS = { troll: 1, tram: 2, bus: 3 };
-  var ROUTE_COLORS = { bus: '#00886d', troll: '#003a7f', tram: '#993917' }; // tumedamad versioonid sõidukite värvidest (COLORS)
+  var ROUTE_COLORS = { bus: '#00886d', troll: '#003a7f', tram: '#993917', night: '#3a2673' }; // tumedamad versioonid sõidukite värvidest (COLORS); ööbuss tumedam kui --night sõiduki värv
   var ROUTE_NAMES = { bus: 'buss', troll: 'troll', tram: 'tramm' };
   var TYPE_TO_MODE = { '1': 'troll', '2': 'bus', '3': 'tram', '7': 'bus' };
   var STOPS_MIN_ZOOM = 15;
@@ -841,6 +886,9 @@
   var trajectoryActive = false; // kas hetkel on kuvatud liini trajektoor (peatusest või sõidukist valitud)
   var routeGen = 0; // iga activateRoute/deactivateRoute suurendab seda - väldib vananenud async-vastuste rakendamist
   var selectedStopMarker = null; // suurem punane markeeritud peatus, mille liin on valitud
+  var trajectoryLineNr = null; // aktiivse trajektoori liininumber - trajektoori režiimis näidatakse ainult seda liini teenindavaid peatusi
+  var selectedVehicleReg = null; // trajektoori kaudu valitud konkreetne sõiduk (regnr) - kuvatakse kaardil punasena
+  var SELECTED_VEHICLE_COLOR = '#ff4d4d';
   var workingSourceIndex = 0;
 
   // ---------- Peatused ja liinid ----------
@@ -866,6 +914,40 @@
     var res = await fetchWithTimeout(GIS_BASE + '/' + layer + '/query?' + qs, 9000);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
+  }
+
+  function stopMatchesTrajectory(officialLines, lat, lon) {
+    if (!trajectoryActive || !trajectoryLineNr) return true;
+    if (!officialLines || !officialLines.length) return false;
+    var want = trajectoryLineNr.toUpperCase();
+    var lineListed = false;
+    for (var i = 0; i < officialLines.length; i++) {
+      if (officialLines[i].toUpperCase() === want) { lineListed = true; break; }
+    }
+    if (!lineListed) return false;
+    // "liini_nr" tekstiväli peatuse enda kirjes pole alati usaldusväärne (nt samanimelisi peatuseid
+    // on Tallinnas eri kohtades palju ja andmeviga võib liini valesse kohta kirja panna) - seega
+    // kontrolli lisaks, et peatus asuks päriselt valitud liini trajektoori geomeetria lähedal.
+    if (currentRouteGeom && currentRouteGeom.length && typeof lat === 'number' && typeof lon === 'number') {
+      var proj = projectPointToRoute(lat, lon, currentRouteGeom);
+      if (proj.dist > 70) return false;
+    }
+    return true;
+  }
+
+  // Kutsutakse trajektoori aktiveerimisel/deaktiveerimisel - uuendab kõigi juba laaditud peatuste
+  // nähtavust vastavalt sellele, kas nad kuuluvad hetkel valitud liini trajektoorile.
+  function applyStopTrajectoryFilter() {
+    for (var id in stopVisualMarkersById) {
+      var visual = stopVisualMarkersById[id];
+      var hit = stopMarkersById[id];
+      if (!hit) continue;
+      var ll = hit.getLatLng();
+      var match = stopMatchesTrajectory(hit.officialLines, ll.lat, ll.lng);
+      var onMap = stopsLayer.hasLayer(visual);
+      if (match && !onMap) { stopsLayer.addLayer(visual); stopsLayer.addLayer(hit); }
+      if (!match && onMap) { stopsLayer.removeLayer(visual); stopsLayer.removeLayer(hit); }
+    }
   }
 
   function refreshStopsForViewport() {
@@ -903,7 +985,6 @@
           fillColor: style.fillColor, fillOpacity: style.fillOpacity,
           interactive: false
         });
-        visual.addTo(stopsLayer);
         stopVisualMarkersById[id] = visual;
 
         // Nähtamatu, palju suurem "hit target" - see kannab popupi ja võtab klikid vastu,
@@ -917,9 +998,12 @@
         hit.bindPopup('<div class="stop-title">' + escapeHtml(name) + '</div><div class="stop-loading">Laen liine…</div>', { closeButton: false, minWidth: 200, maxWidth: 280, autoPanPadding: [20, 20] });
         hit.stopObjectId = id;
         hit.officialLines = officialLines;
-        hit.on('popupopen', function() { openStopPopup(hit, lat, lon, name); });
+        hit.on('popupopen', function() { openStopPopup(hit, lat, lon, name); keepPopupClearOfEtaPanel(hit); });
         stopMarkersById[id] = hit;
-        hit.addTo(stopsLayer);
+        if (stopMatchesTrajectory(officialLines, lat, lon)) {
+          visual.addTo(stopsLayer);
+          hit.addTo(stopsLayer);
+        }
       });
     }).catch(function() { /* peatuste laadimine ebaõnnestus, jäta vaikimisi vahele */ });
   }
@@ -999,6 +1083,7 @@
     marker.setPopupContent(html);
     var el = marker.getPopup().getElement();
     if (!el) return;
+    keepPopupClearOfEtaPanel(marker);
     el.querySelectorAll('.line-pill').forEach(function(pill) {
       pill.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -1016,7 +1101,7 @@
   // andmetest väljumisaega ei leitud - sel juhul EI näidata mingit teadet, paneel lihtsalt ei ilmu.
   function setEtaPanel(data) {
     var el = document.getElementById('etaPanel');
-    el.classList.remove('show');
+    el.classList.remove('show', 'eta-panel-wide');
     el.innerHTML = '';
   }
 
@@ -1033,6 +1118,7 @@
       '<div class="eta-stop">Peatuses ' + escapeHtml(ctx.stopName) + '</div>' +
       '<div class="eta-times">' + chips + '</div>' +
       minsHtml;
+    el.classList.remove('eta-panel-wide');
     el.classList.add('show');
   }
 
@@ -1042,7 +1128,244 @@
       '<div class="eta-line">Liin ' + escapeHtml(ctx.lineNr) + '</div>' +
       '<div class="eta-stop">Peatuses ' + escapeHtml(ctx.stopName) + '</div>' +
       '<div class="eta-empty">Hetkel andmed puuduvad.</div>';
+    el.classList.remove('eta-panel-wide');
     el.classList.add('show');
+  }
+
+  // ---------- Sõiduki trajektoori ajakava paneel ----------
+  // Kuvatakse siis, kui trajektoor on valitud läbi konkreetse sõiduki (mitte peatuse). Näitab liini
+  // numbrit, sõiduki mudelit ja kõikide järgmiste (praegusest asukohast lõpp-peatuseni) peatuste
+  // ligikaudseid saabumisaegu, üleval-alla, nagu sõiduplaan.
+  // Sõiduki mudel + registrinumber ajakava paneeli päises. Registrinumber on vajutatav - viib kaardil
+  // sõiduki enda peale ja avab sõiduki tavapärase andmepaneeli (popup), ajakava paneeli ennast see ei
+  // sulge ega muuda.
+  function vehicleHeaderHtml(model, reg) {
+    var regHtml = reg
+      ? '<div class="eta-reg-row"><span class="veh-reg-link" data-reg="' + escapeHtml(reg) + '">' + escapeHtml(reg) + '</span></div>'
+      : '';
+    return '<div class="eta-stop">' + escapeHtml(model) + '</div>' + regHtml;
+  }
+  function wireVehicleHeaderRegLink(el) {
+    var link = el.querySelector('.veh-reg-link');
+    if (!link) return;
+    link.onclick = function(e) {
+      e.stopPropagation();
+      focusOnVehicleByReg(link.getAttribute('data-reg'));
+    };
+  }
+  function setEtaPanelVehicleLoading(lineNr, model, reg) {
+    var el = document.getElementById('etaPanel');
+    el.classList.add('show', 'eta-panel-wide');
+    el.innerHTML =
+      '<div class="eta-line">Liin ' + escapeHtml(lineNr) + '</div>' +
+      vehicleHeaderHtml(model, reg) +
+      '<div class="stop-loading">Laen sõiduplaani…</div>';
+    wireVehicleHeaderRegLink(el);
+  }
+  function setEtaPanelVehicleEmpty(lineNr, model, reg) {
+    var el = document.getElementById('etaPanel');
+    el.classList.add('show', 'eta-panel-wide');
+    el.innerHTML =
+      '<div class="eta-line">Liin ' + escapeHtml(lineNr) + '</div>' +
+      vehicleHeaderHtml(model, reg) +
+      '<div class="eta-empty">Hetkel andmed puuduvad.</div>';
+    wireVehicleHeaderRegLink(el);
+  }
+  function setEtaPanelVehicleSchedule(lineNr, model, reg, rows) {
+    var el = document.getElementById('etaPanel');
+    var rowsHtml = rows.map(function(r) {
+      var timeHtml = r.clock
+        ? '<span class="tt-time">' + escapeHtml(r.clock) + '</span>'
+        : '<span class="tt-time tt-missing">—</span>';
+      var clickable = (r.id != null && r.lat != null && r.lon != null);
+      return '<div class="tt-row' + (clickable ? ' clickable' : '') + '"' +
+              (clickable ? ' data-stop-id="' + escapeHtml(r.id) + '" data-lat="' + r.lat + '" data-lon="' + r.lon + '"' : '') +
+              '><span class="tt-stop">' + escapeHtml(r.name) + '</span>' + timeHtml + '</div>';
+    }).join('');
+    el.innerHTML =
+      '<div class="eta-line">Liin ' + escapeHtml(lineNr) + '</div>' +
+      vehicleHeaderHtml(model, reg) +
+      '<div class="eta-timetable">' + rowsHtml + '</div>';
+    el.classList.add('show', 'eta-panel-wide');
+    wireVehicleHeaderRegLink(el);
+    el.querySelectorAll('.tt-row.clickable').forEach(function(row) {
+      row.addEventListener('click', function() {
+        focusOnStopById(row.getAttribute('data-stop-id'), parseFloat(row.getAttribute('data-lat')), parseFloat(row.getAttribute('data-lon')));
+      });
+    });
+  }
+
+  // Projekteerib punkti (lat,lon) lõiku a-b peal, tagastab lähima punkti asukoha lõigul (t: 0..1)
+  // ja kauguse punktist meetrites. Kasutab lihtsat lokaalset ekvirektangulaarset lähendust, mis on
+  // niivõrd väikeste vahemaade (üksikud tänavalõigud) jaoks piisavalt täpne.
+  function projectOnSegment(lat, lon, a, b) {
+    var mPerDegLat = 111320;
+    var mPerDegLon = 111320 * Math.cos(a[0] * Math.PI / 180);
+    var bx = (b[1] - a[1]) * mPerDegLon, by = (b[0] - a[0]) * mPerDegLat;
+    var px = (lon - a[1]) * mPerDegLon, py = (lat - a[0]) * mPerDegLat;
+    var lenSq = bx * bx + by * by;
+    var t = lenSq > 0 ? (px * bx + py * by) / lenSq : 0;
+    t = Math.max(0, Math.min(1, t));
+    var projx = t * bx, projy = t * by;
+    var ddx = px - projx, ddy = py - projy;
+    return { t: t, distMeters: Math.sqrt(ddx * ddx + ddy * ddy) };
+  }
+
+  // Leiab punkti lähima asukoha kogu trajektoori (mitme joonelõigu jada) peal ning tagastab
+  // "progressi" - kumulatiivse kauguse meetrites trajektoori algusest selle punktini. Kasutatakse
+  // nii sõiduki enda asukoha kui ka peatuste järjestamiseks piki trajektoori.
+  function projectPointToRoute(lat, lon, routeGeom) {
+    var best = { dist: Infinity, progress: 0 };
+    var cumulative = 0;
+    routeGeom.forEach(function(line) {
+      for (var i = 0; i < line.length - 1; i++) {
+        var a = line[i], b = line[i + 1];
+        var segLenMeters = haversineMeters(a[0], a[1], b[0], b[1]);
+        var proj = projectOnSegment(lat, lon, a, b);
+        if (proj.distMeters < best.dist) {
+          best.dist = proj.distMeters;
+          best.progress = cumulative + proj.t * segLenMeters;
+        }
+        cumulative += segLenMeters;
+      }
+    });
+    return best;
+  }
+
+  // Leiab valitud liini trajektoorile jäävad, sellel liinil TEGELIKULT peatuvad peatused (mitte
+  // lihtsalt trajektoori lähedal asuvad), järjestatuna sõiduki praegusest asukohast lõpp-peatuseni.
+  function buildVehicleRouteStops(mode, lineNr, reg) {
+    var v = vehicles[reg];
+    var geom = currentRouteGeom;
+    if (!v || !geom || !geom.length) return Promise.resolve([]);
+    var vehProj = projectPointToRoute(v.lat, v.lon, geom);
+    var vehProgress = vehProj.progress;
+    // Sõiduk on depoos (või muidu trajektoorilt väljas, nt depoohoovis/parklas), kui ta on valitud
+    // liini trajektoorist liiga kaugel. Sellisel juhul pole peatuste jada leidmine mõistlik ega
+    // usaldusväärne - ajakava ei üritatagi koostada, vaid näidatakse kohe "andmed puuduvad".
+    var VEHICLE_OFF_ROUTE_METERS = 150;
+    if (vehProj.dist > VEHICLE_OFF_ROUTE_METERS) return Promise.resolve([]);
+    var destName = (v.data && v.data.destination ? v.data.destination : '').trim().toLowerCase();
+
+    var minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+    geom.forEach(function(line) {
+      line.forEach(function(p) {
+        if (p[0] < minLat) minLat = p[0];
+        if (p[0] > maxLat) maxLat = p[0];
+        if (p[1] < minLon) minLon = p[1];
+        if (p[1] > maxLon) maxLon = p[1];
+      });
+    });
+    if (!isFinite(minLat)) return Promise.resolve([]);
+    var pad = 0.004;
+    var bbox = [minLon - pad, minLat - pad, maxLon + pad, maxLat + pad].join(',');
+    var wantNr = String(lineNr).trim().toUpperCase();
+
+    return arcgisFetch(STOPS_LAYER, {
+      geometry: bbox, geometryType: 'esriGeometryEnvelope', inSR: 4326,
+      spatialRel: 'esriSpatialRelIntersects',
+      outFields: 'objectid,nimetus,liini_nr', returnGeometry: true, outSR: 4326, f: 'geojson'
+    }).then(function(gj) {
+      var stops = [];
+      (gj.features || []).forEach(function(f) {
+        if (!f.geometry) return;
+        var official = (f.properties.liini_nr || '').split(',').map(function(s) { return s.trim().toUpperCase(); });
+        if (official.indexOf(wantNr) === -1) return; // liin ei peatu siin, ainult läbib
+        var lon = f.geometry.coordinates[0], lat = f.geometry.coordinates[1];
+        var proj = projectPointToRoute(lat, lon, geom);
+        if (proj.dist > 60) return; // liiga kaugel trajektoorist - tõenäoliselt vale vaste (nt samanimeline peatus mujal)
+        stops.push({ id: f.properties.objectid, name: f.properties.nimetus || 'Peatus', lat: lat, lon: lon, progress: proj.progress });
+      });
+      stops.sort(function(a, b) { return a.progress - b.progress; });
+      var remaining = stops.filter(function(s) { return s.progress >= vehProgress - 30; });
+
+      // Kui sõiduk on juba (ligikaudu) esimese allesjäänud peatuse juures, on selle KONKREETSE
+      // peatuse SIRI väljumisaeg ebausaldusväärne - sõiduk võib olla just lahkumas/lahkunud, mistõttu
+      // väljumiste nimekirjas on juba järgmise, hiljem sõitva sõiduki aeg. Kasutades seda kogemata
+      // ankruna, nihkuks kogu ülejäänud ajakava ekslikult ühe reisi võrra edasi. Selle asemel jäetakse
+      // selline peatus ajakavast lihtsalt välja ja ajakava algab järgmisest peatusest.
+      var CURRENT_STOP_AT_VEHICLE_METERS = 40;
+      while (remaining.length && haversineMeters(v.lat, v.lon, remaining[0].lat, remaining[0].lon) <= CURRENT_STOP_AT_VEHICLE_METERS) {
+        remaining = remaining.slice(1);
+      }
+
+      // Lõika nimekiri sõiduki tegeliku sihtpeatuseni (suund/lõpp-peatus) - trajektoori geomeetria
+      // ise võib jätkuda kaugemale (nt tsükliline liin, depoosõit), aga sõiduplaani ei tohi seetõttu
+      // rohkem peatuseid näidata kui sinna, kuhu see konkreetne sõiduk tegelikult sõidab.
+      var cutIdx = -1;
+      if (destName) {
+        for (var i = 0; i < remaining.length; i++) {
+          if ((remaining[i].name || '').trim().toLowerCase() === destName) { cutIdx = i; break; }
+        }
+        if (cutIdx === -1) {
+          for (var j = 0; j < remaining.length; j++) {
+            var nm = (remaining[j].name || '').trim().toLowerCase();
+            if (nm && (nm.indexOf(destName) !== -1 || destName.indexOf(nm) !== -1)) { cutIdx = j; break; }
+          }
+        }
+      }
+      if (cutIdx !== -1) {
+        remaining = remaining.slice(0, cutIdx + 1);
+      } else {
+        // Alternatiivmeetod: kui sihtpeatust ei õnnestunud tuvastada (nt suunaks on harval juhul
+        // märgitud piirkond, kus sõiduk tegelikult ei peatu), pole trajektoori tegelik lõpp-punkt
+        // teada. Sel juhul näidatakse järgnevaid peatuseid lihtsalt niikaua, kuni nende nimed
+        // hakkavad korduma (nt tsükliline liin/depoopööre) - nii välditakse ajakavas imelike ja
+        // korduvate kirjete teket.
+        var seenStopNames = {};
+        for (var k = 0; k < remaining.length; k++) {
+          var stopNm = (remaining[k].name || '').trim().toLowerCase();
+          if (stopNm && seenStopNames[stopNm]) { remaining = remaining.slice(0, k); break; }
+          if (stopNm) seenStopNames[stopNm] = true;
+        }
+      }
+
+      return remaining;
+    }).catch(function() { return []; });
+  }
+
+  // Laadib ja kuvab valitud sõiduki trajektoori ajakava paneeli. myGen kaitseb selle eest, et
+  // vahepeal juba tühistatud/uue liini valimise tulemus üle ei kirjutaks kehtivat paneeli.
+  function loadVehicleTimetablePanel(mode, lineNr, reg, myGen) {
+    var v = vehicles[reg];
+    var model = (v && v.data.model) || 'Teadmata';
+    setEtaPanelVehicleLoading(lineNr, model, reg);
+    buildVehicleRouteStops(mode, lineNr, reg).then(function(stops) {
+      if (routeGen !== myGen) return;
+      if (!stops.length) { setEtaPanelVehicleEmpty(lineNr, model, reg); return; }
+      var capped = stops.slice(0, 40);
+      return Promise.all(capped.map(function(s) {
+        return fetchSiriScheduleTimes(mode, lineNr, s.lat, s.lon).then(function(times) {
+          return { id: s.id, name: s.name, lat: s.lat, lon: s.lon, candidates: times || [] };
+        }).catch(function() { return { id: s.id, name: s.name, lat: s.lat, lon: s.lon, candidates: [] }; });
+      })).then(function(rows) {
+        if (routeGen !== myGen) return;
+        // Iga peatuse jaoks on SIRI-st mitu järgmist väljumisaega (tavaliselt kuni 3). Peatuseid,
+        // mille jaoks ühtki aega ei leitud, ei kuvata üldse (need on enamasti valeandmed - nt sama
+        // peatuse duplikaat GIS-andmestikus, mis SIRI-le täpselt ei vasta). Kui peatuse LÄHIM aeg on
+        // trajektoori järjekorras eelnevast kinnitatud peatusest varasem, ei visata seda peatust kohe
+        // minema - see tähendab tõenäoliselt, et see esimene aeg kuulub mõnele teisele, vahepeal
+        // sõitvale sõidukile. Selle asemel proovitakse järgmisi (hilisemaid) sama peatuse aegu, kuni
+        // leitakse üks, mis loogiliselt jätkab eelmiste peatuste ajajada.
+        var filtered = [];
+        var lastMinutes = -Infinity;
+        rows.forEach(function(r) {
+          var pick = null;
+          for (var i = 0; i < r.candidates.length; i++) {
+            var c = r.candidates[i];
+            if (c.clock && c.minutesUntil != null && c.minutesUntil >= lastMinutes - 1) { pick = c; break; }
+          }
+          if (!pick) return; // ükski järgmistest aegadest ei sobinud jada jätkuks - jäta peatus välja
+          filtered.push({ id: r.id, name: r.name, lat: r.lat, lon: r.lon, clock: pick.clock });
+          if (pick.minutesUntil > lastMinutes) lastMinutes = pick.minutesUntil;
+        });
+        if (!filtered.length) { setEtaPanelVehicleEmpty(lineNr, model, reg); return; }
+        setEtaPanelVehicleSchedule(lineNr, model, reg, filtered);
+      });
+    }).catch(function() {
+      if (routeGen !== myGen) return;
+      setEtaPanelVehicleEmpty(lineNr, model, reg);
+    });
   }
 
   // ---------- Sõiduplaani (SIRI) põhine ETA - täpsed kellaajad GPS-hinnangu asemel ----------
@@ -1197,19 +1520,28 @@
     });
   }
 
-  function activateRoute(mode, lineNr, stopInfo) {
+  function activateRoute(mode, lineNr, stopInfo, vehicleInfo) {
     var myGen = ++routeGen;
     applyLineLock(mode, lineNr);
     trajectoryActive = true;
+    trajectoryLineNr = String(lineNr);
     setShowAllBtnState(true);
     return drawRoute(mode, lineNr).then(function() {
       if (myGen !== routeGen) return; // vahepeal on juba deaktiveeritud või uus liin valitud - ignoreeri seda vananenud tulemust
+      applyStopTrajectoryFilter();
       if (stopInfo) {
+        setSelectedVehicleReg(null);
         setSelectedStopMarker(stopInfo.lat, stopInfo.lon);
         activeEtaContext = { mode: mode, lineNr: lineNr, lat: stopInfo.lat, lon: stopInfo.lon, stopName: stopInfo.name };
         refreshActiveEtaPanel();
+      } else if (vehicleInfo) {
+        clearSelectedStopMarker();
+        activeEtaContext = null;
+        setSelectedVehicleReg(vehicleInfo.reg);
+        loadVehicleTimetablePanel(mode, lineNr, vehicleInfo.reg, myGen);
       } else {
         clearSelectedStopMarker();
+        setSelectedVehicleReg(null);
         activeEtaContext = null;
         setEtaPanel(null);
       }
@@ -1221,10 +1553,13 @@
     routeGen++; // tühistab kõik pooleliolevad activateRoute lubadused
     clearRoute();
     clearSelectedStopMarker();
+    setSelectedVehicleReg(null);
     activeEtaContext = null;
     setEtaPanel(null);
     clearLineLock();
     trajectoryActive = false;
+    trajectoryLineNr = null;
+    applyStopTrajectoryFilter();
     setShowAllBtnState(false);
   }
 
@@ -1245,6 +1580,70 @@
 
   function clearSelectedStopMarker() {
     if (selectedStopMarker) { map.removeLayer(selectedStopMarker); selectedStopMarker = null; }
+  }
+
+  // ---------- Ajakava paneelist kaardil vaatamine (peatuse rida / sõiduki registrinumber) ----------
+  // Kumbki neist EI puuduta ajakava (eta) paneeli ennast - see jääb muutumatuna kuvatuks. Ainult
+  // liigutakse kaardil sihtmärgi peale ja avatakse selle enda tavapärane infopaneel (popup).
+  function focusMapOnAndThen(lat, lon, cb) {
+    map.once('moveend', function() { setTimeout(cb, 60); });
+    map.flyTo([lat, lon], Math.max(map.getZoom(), 17), { duration: 0.6 });
+  }
+
+  // Kontrollib, kas antud markeri äsja avatud popup jääb ajakava (eta) paneeli taha peitu, ja kui
+  // jääb, lükkab kaarti täpselt nii palju, et popup selle alt vabaneks. Leafleti enda autoPan ei tea
+  // #etaPanel HTML-kihist midagi (see pole Leafleti kaardikiht), seega tuleb kattuvus ise, popup'i
+  // TEGELIKU (mõõdetud) suuruse järgi, parandada - see töötab sõltumata sellest, kuidas popup avati
+  // (klõps kaardil otse või ajakava rea/registrinumbri kaudu) ja ka siis, kui popup'i sisu hiljem
+  // (nt peatuse liinide laadimise järel) kasvab.
+  function keepPopupClearOfEtaPanel(marker) {
+    var popup = marker.getPopup && marker.getPopup();
+    var popupEl = popup && popup.isOpen && popup.isOpen() && popup.getElement();
+    var etaEl = document.getElementById('etaPanel');
+    if (!popupEl || !etaEl || !etaEl.classList.contains('show')) return;
+    var popRect = popupEl.getBoundingClientRect();
+    var etaRect = etaEl.getBoundingClientRect();
+    if (popRect.left >= etaRect.right || popRect.right <= etaRect.left) return; // ei kattu horisontaalselt
+    var overlap = (etaRect.bottom + 12) - popRect.top;
+    if (overlap > 0) {
+      map.panBy([0, -overlap], { animate: true, duration: 0.3 });
+    }
+  }
+
+  // Avab täpselt selle peatuse popupi, mille objectid on antud - MITTE nime järgi otsituna, sest
+  // samanimelisi peatusi on Tallinnas mitmeid. Peatus võib hetkel olla vaateväljast väljas ja seega
+  // veel laadimata, seetõttu proovitakse (lühikese ajaga) korduvalt, kuni peatuste laadimine
+  // jõuab järele.
+  function focusOnStopById(stopId, lat, lon) {
+    if (stopId == null || !isFinite(lat) || !isFinite(lon)) return;
+    focusMapOnAndThen(lat, lon, function() {
+      var attempts = 0;
+      (function tryOpen() {
+        var marker = stopMarkersById[stopId];
+        if (marker) { marker.openPopup(); return; }
+        attempts++;
+        if (attempts > 40) return; // peatus ei laadinud mõistliku aja jooksul - loobu vaikselt
+        setTimeout(tryOpen, 120);
+      })();
+    });
+  }
+
+  // Avab täpselt selle sõiduki popupi (nagu registrinumbriga otsimisel). Sõiduk peab kaardil
+  // nähtav olema (praegust filtrit rahuldama), et popup avaneks - reapplyAllFilters käivitub
+  // automaatselt map'i moveend sündmuse peale.
+  function focusOnVehicleByReg(reg) {
+    if (!reg || !vehicles[reg]) return;
+    var v = vehicles[reg];
+    focusMapOnAndThen(v.lat, v.lon, function() {
+      var attempts = 0;
+      (function tryOpen() {
+        var vv = vehicles[reg];
+        if (vv && map.hasLayer(vv.marker)) { vv.marker.openPopup(); return; }
+        attempts++;
+        if (attempts > 40) return;
+        setTimeout(tryOpen, 120);
+      })();
+    });
   }
 
   function setShowAllBtnState(isTrajectoryActive) {
@@ -1284,9 +1683,22 @@
     return [];
   }
 
+  // Ööbussid kasutavad ArcGIS-is sama trajektoori-kihti kui tavabussid (mode='bus'), seega tuleb
+  // ööliin tuvastada aktiivsete sõidukite andmetest (tüüp '7'), et trajektoor saaks õige tumelilla värvi.
+  function isNightLine(mode, lineNr) {
+    if (mode !== 'bus') return false;
+    var want = String(lineNr).trim().toUpperCase();
+    for (var id in vehicles) {
+      var d = vehicles[id].data;
+      if (d.type === '7' && String(d.line).trim().toUpperCase() === want) return true;
+    }
+    return false;
+  }
+
   function drawRoute(mode, lineNr) {
     routeLayer.clearLayers();
     currentRouteGeom = null;
+    var routeColor = isNightLine(mode, lineNr) ? ROUTE_COLORS.night : ROUTE_COLORS[mode];
     var whereVal = String(lineNr).replace(/'/g, "''");
     return arcgisFetch(ROUTE_LAYERS[mode], {
       where: "liini_nr='" + whereVal + "'",
@@ -1297,7 +1709,7 @@
         L.geoJSON(f, {
           renderer: routeSvgRenderer,
           interactive: false,
-          style: { color: ROUTE_COLORS[mode], weight: 4, opacity: 0.85 }
+          style: { color: routeColor, weight: 4, opacity: 0.85 }
         }).addTo(routeLayer);
         geom = geom.concat(extractLineStrings(f.geometry));
       });
@@ -1331,7 +1743,10 @@
   function makeIcon(color, heading) {
     var hasHeading = (heading !== null && heading !== 999 && !isNaN(heading));
     var rot = hasHeading ? heading : 0;
-    var html = '<div class="veh-shape" style="transform:rotate(' + rot + 'deg);">' + shapeSVG(color, hasHeading) + '</div>';
+    var isSelected = (color === SELECTED_VEHICLE_COLOR);
+    var filterCss = 'drop-shadow(0 1px 3px rgba(0,0,0,0.6)) drop-shadow(0 0 5px rgba(255,255,255,0.18))' +
+      (isSelected ? ' drop-shadow(0 0 7px ' + SELECTED_VEHICLE_COLOR + ') drop-shadow(0 0 2px ' + SELECTED_VEHICLE_COLOR + ')' : '');
+    var html = '<div class="veh-shape" style="transform:rotate(' + rot + 'deg); filter: ' + filterCss + ';">' + shapeSVG(color, hasHeading) + '</div>';
     return L.divIcon({
       className: 'veh-icon',
       html: html,
@@ -1343,6 +1758,29 @@
   function angleLerpTarget(oldDeg, newDeg) {
     var d = ((newDeg - oldDeg + 540) % 360) - 180;
     return oldDeg + d;
+  }
+
+  // Tagastab sõiduki ikooni värvi - kui see sõiduk on trajektoori kaudu valitud, siis punane,
+  // muidu tavapärane tüübi/asenduse värv.
+  function vehicleIconColor(d) {
+    if (selectedVehicleReg && d.reg === selectedVehicleReg) return SELECTED_VEHICLE_COLOR;
+    return isTrollSubstitute(d) ? TROLL_SUBSTITUTE_COLOR : (COLORS[d.type] || '#999');
+  }
+
+  function refreshVehicleIconFor(reg) {
+    var v = vehicles[reg];
+    if (!v) return;
+    v.marker.setIcon(makeIcon(vehicleIconColor(v.data), v.hasHeadingIcon ? v.headingDeg : null));
+  }
+
+  // Määrab, milline sõiduk on hetkel trajektoori kaudu valitud (punane kaardil). Uuendab kohe nii
+  // eelmise kui uue sõiduki ikooni värvi.
+  function setSelectedVehicleReg(reg) {
+    var prev = selectedVehicleReg;
+    if (prev === reg) return;
+    selectedVehicleReg = reg;
+    if (prev) refreshVehicleIconFor(prev);
+    if (reg) refreshVehicleIconFor(reg);
   }
 
   function escapeHtml(s) {
@@ -1377,7 +1815,7 @@
     var model = d.model || 'Teadmata';
     var mode = TYPE_TO_MODE[d.type];
     var lineLink = mode
-      ? '<span class="veh-line-link" data-mode="' + mode + '" data-line="' + escapeHtml(d.line) + '">' + escapeHtml(d.line) + '</span>'
+      ? '<span class="veh-line-link" data-mode="' + mode + '" data-line="' + escapeHtml(d.line) + '" data-reg="' + escapeHtml(d.reg) + '">' + escapeHtml(d.line) + '</span>'
       : escapeHtml(d.line);
     var img = '';
     if (model !== 'Teadmata') {
@@ -1407,8 +1845,9 @@
       e.stopPropagation();
       var lineMode = link.getAttribute('data-mode');
       var lineNr = link.getAttribute('data-line');
+      var reg = link.getAttribute('data-reg');
       marker.closePopup();
-      activateRoute(lineMode, lineNr, null);
+      activateRoute(lineMode, lineNr, null, reg ? { reg: reg } : null);
     };
   }
 
@@ -1523,11 +1962,11 @@
     var existing = vehicles[id];
 
     if (!existing) {
-      var iconColor = isTrollSubstitute(d) ? TROLL_SUBSTITUTE_COLOR : (COLORS[d.type] || '#999');
+      var iconColor = vehicleIconColor(d);
       var icon = makeIcon(iconColor, d.headingNum);
       var marker = L.marker([d.lat, d.lon], { icon: icon, riseOnHover: true });
       marker.bindPopup(popupHTML(d), { closeButton: false, minWidth: 220, maxWidth: 360, autoPanPadding: [20, 20] });
-      marker.on('popupopen', function() { wireVehiclePopupLineLink(marker); });
+      marker.on('popupopen', function() { wireVehiclePopupLineLink(marker); keepPopupClearOfEtaPanel(marker); });
       if (visible) marker.addTo(map);
       vehicles[id] = {
         marker: marker,
@@ -1559,7 +1998,7 @@
 
     if (iconKindChanged) {
 
-      var iconColor = isTrollSubstitute(d) ? TROLL_SUBSTITUTE_COLOR : (COLORS[d.type] || '#999');
+      var iconColor = vehicleIconColor(d);
       existing.marker.setIcon(makeIcon(iconColor, hasHeading ? d.headingNum : null));
       existing.hasHeadingIcon = hasHeading;
       targetHeading = hasHeading ? d.headingNum : existing.headingDeg;
@@ -1914,8 +2353,11 @@
   function showAll() {
     clearRoute();
     clearSelectedStopMarker();
+    setSelectedVehicleReg(null);
     setEtaPanel(null);
     trajectoryActive = false;
+    trajectoryLineNr = null;
+    applyStopTrajectoryFilter();
     setShowAllBtnState(false);
     regInput.value = '';
     lineInput.value = '';
