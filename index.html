@@ -385,9 +385,7 @@
       align-items: flex-start;
       gap: 8px;
     }
-    /* Mobiilis pole "Mudel" nupul selja taga #panel'i taustavärvi, seetõttu vajab ta ise piisavalt
-       kontrastset tausta ülal kaardi peal - aga see peab siiski järgima heledat/tumedat režiimi
-       samamoodi nagu iga teine nupp, mitte olema alati sunnitud tume+valge tekstiga. */
+
     #secondaryControls #modelFilterBtn {
       background: var(--popup-dark-bg) !important;
       color: #e7eaee !important;
@@ -594,9 +592,6 @@
 
   body.light-mode {
     --text: #14181f; --text-dim: #40474f;
-    /* Heledal taustal on valge toonusega "klaas" hover/highlight efektid praktiliselt nähtamatud
-       (nt sõiduki ajakava peatuste hover, nupu-hoveri taust) - heledas režiimis kasutatakse
-       hoopis musta toonust, mis annab sama "tumedam/heledam" kontrastiefekti, aga õiges suunas. */
     --glass-tint: rgba(0,0,0,0.05);
     --glass-tint-strong: rgba(0,0,0,0.12);
   }
@@ -656,9 +651,6 @@
   body.light-mode .field input[type="text"] { border-color: rgba(0,0,0,0.22); }
   body.light-mode .brand { border-right-color: rgba(0,0,0,0.22); }
   body.light-mode #etaPanel .tt-row { border-bottom-color: rgba(0,0,0,0.15); }
-
-  /* helel kaardil on hele kollane liiga madala kontrastiga - kasuta tumedamat merevaigukollast tooni,
-     nii number, ääred kui taust (kõik tuletatud currentColor'ist) lähevad automaatselt tumedamaks */
   body.light-mode #etaPanel .eta-chip.delayed { color: #a15a00; }
 
   /* ---------- Sõiduki trajektoori ajakava paneel ---------- */
@@ -1133,12 +1125,6 @@
   }
 
   // ---------- Sõiduki trajektoori ajakava paneel ----------
-  // Kuvatakse siis, kui trajektoor on valitud läbi konkreetse sõiduki (mitte peatuse). Näitab liini
-  // numbrit, sõiduki mudelit ja kõikide järgmiste (praegusest asukohast lõpp-peatuseni) peatuste
-  // ligikaudseid saabumisaegu, üleval-alla, nagu sõiduplaan.
-  // Sõiduki mudel + registrinumber ajakava paneeli päises. Registrinumber on vajutatav - viib kaardil
-  // sõiduki enda peale ja avab sõiduki tavapärase andmepaneeli (popup), ajakava paneeli ennast see ei
-  // sulge ega muuda.
   function vehicleHeaderHtml(model, reg) {
     var regHtml = reg
       ? '<div class="eta-reg-row"><span class="veh-reg-link" data-reg="' + escapeHtml(reg) + '">' + escapeHtml(reg) + '</span></div>'
@@ -1195,9 +1181,6 @@
     });
   }
 
-  // Projekteerib punkti (lat,lon) lõiku a-b peal, tagastab lähima punkti asukoha lõigul (t: 0..1)
-  // ja kauguse punktist meetrites. Kasutab lihtsat lokaalset ekvirektangulaarset lähendust, mis on
-  // niivõrd väikeste vahemaade (üksikud tänavalõigud) jaoks piisavalt täpne.
   function projectOnSegment(lat, lon, a, b) {
     var mPerDegLat = 111320;
     var mPerDegLon = 111320 * Math.cos(a[0] * Math.PI / 180);
