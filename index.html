@@ -1271,8 +1271,6 @@
     if (!removed) return;
     if (liveScheduleStops.length) { topUpLiveSchedule(); return; }
     if (liveScheduleFullStops && liveScheduleIdx < liveScheduleFullStops.length) { topUpLiveSchedule(); return; }
-    // Kõik teadaolevad peatused said läbi (nt sõiduk jõudis lõpp-peatusesse) -
-    // proovime ajakava kiiresti uuesti laadida, äkki liin vahetus vastupidiseks.
     startTerminusReachedRetry();
   }
 
@@ -1411,9 +1409,6 @@
     if (liveScheduleRetryTimer) { clearTimeout(liveScheduleRetryTimer); liveScheduleRetryTimer = null; }
   }
 
-  // Proovib sõiduki ajakava (uuesti) laadida. Tagastab Promise'i, mis lahendub
-  // true'ks kui ajakava saadi ja paneelis kuvati, või false'iks kui andmeid
-  // ei leitud (nt sõiduk parkimisplatsil või pole veel oma marsruudil).
   function tryLoadVehicleSchedule(mode, lineNr, reg, myGen) {
     return buildVehicleRouteStops(mode, lineNr, reg).then(function(stops) {
       if (routeGen !== myGen) return false;
@@ -1434,9 +1429,6 @@
     }).catch(function() { return false; });
   }
 
-  // Kui ajakava on "Hetkel andmed puuduvad" olekus, proovime seda taustal
-  // pidevalt iga 5 sekundi tagant uuesti laadida - kui sõiduk vahepeal oma
-  // marsruudile jõuab, ilmub ajakava kuvama ilma kasutaja tegevuseta.
   function scheduleEmptyRetry(mode, lineNr, reg, myGen) {
     clearLiveScheduleRetry();
     liveScheduleRetryTimer = setTimeout(function() {
@@ -1449,10 +1441,6 @@
     }, EMPTY_RETRY_INTERVAL_MS);
   }
 
-  // Kui sõiduk jõuab teadaoleva ajakava lõppu (nt lõpp-peatusesse), proovime
-  // kiiresti (iga 1 sekund, kuni 15 sekundit) ajakava uuesti laadida - liin
-  // võib vahetuda vastassuunaliseks. Kui see aeg läbi ja midagi ei leita,
-  // langetakse tavapärasesse "andmed puuduvad" + 5-sekundilisse taustaproovi.
   function retryTerminusStep(mode, lineNr, reg, myGen, elapsedMs) {
     liveScheduleRetryTimer = setTimeout(function() {
       liveScheduleRetryTimer = null;
