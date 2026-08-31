@@ -7,6 +7,9 @@
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #0a0c10;
@@ -28,12 +31,27 @@
     --accent-solid: #278082;
     --night-dim: #423868;
     --popup-dark-bg: rgba(18,21,27,0.78);
+    --veh-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    --veh-glow: 0 0 5px rgba(255,255,255,0.18);
   }
   * { box-sizing: border-box; }
-  html, body { margin:0; padding:0; height:100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  html, body { margin:0; padding:0; height:100%; background: var(--bg); color: var(--text); font-family: 'Rubik', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-weight: 500; }
   #map { position:absolute; inset:0; z-index:0; background: var(--bg); }
 
-  #map.dark-mode .leaflet-tile-pane { filter: brightness(0.95) contrast(1.12) saturate(1.35); }
+  #map.dark-mode .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.65); }
+
+  body.light-mode {
+    --veh-shadow: 0 1px 2px rgba(20,24,31,0.22);
+    --veh-glow: 0 0 3px rgba(255,255,255,0.6);
+  }
+  #map.dark-mode {
+    --veh-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    --veh-glow: 0 0 3px rgba(255,255,255,0.07);
+  }
+  body.light-mode .veh-shape svg [stroke="#ffffff"] {
+    stroke: #8b93a1;
+    stroke-width: 1.1px;
+  }
 
   /* ================= Global animations ================= */
   @keyframes panelDropIn {
@@ -92,8 +110,8 @@
     flex: none;
   }
   .brand #logoImg {
-    width: 32px;
-    height: 32px;
+    width: 42px;
+    height: 42px;
     object-fit: contain;
     display:block;
   }
@@ -230,6 +248,7 @@
     display:none;
     isolation: isolate;
     box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 1px rgba(255,180,180,0.2);
+    transition: top .2s ease;
   }
   #errorBanner.show { display:block; animation: fadeUpIn .3s ease, bannerShake .5s ease .3s; }
 
@@ -238,7 +257,7 @@
   .veh-shape {
     width: 22px; height: 22px;
     display:flex; align-items:center; justify-content:center;
-    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6)) drop-shadow(0 0 5px rgba(255,255,255,0.18));
+    filter: drop-shadow(var(--veh-shadow)) drop-shadow(var(--veh-glow));
   }
   .veh-shape svg { display:block; }
   .veh-label {
@@ -356,6 +375,7 @@
     display: none;
     isolation: isolate;
     box-shadow: var(--glass-shadow);
+    transition: top .2s ease;
   }
   #etaPanel.show { display:block; animation: fadeUpIn .3s ease; }
   #etaPanel .eta-line { font-size: 14px; font-weight: 700; color: var(--text); }
@@ -369,6 +389,36 @@
   #etaPanel .eta-mins { margin-top: 5px; color: var(--text-dim); font-size: 11px; }
 
   #secondaryControls { display: contents; }
+  .panel-primary { display: contents; }
+  .panel-break { display: none; }
+
+  /* Panel: squarish aspect ratios */
+  @media (min-width: 721px) and (max-aspect-ratio: 4/3) {
+    #panel {
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: calc(100% - 28px);
+      justify-content: space-between;
+      row-gap: 10px;
+    }
+    .panel-primary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+      flex: 1 1 100%;
+    }
+    #secondaryControls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    #panel .spacer { display: none; }
+    #status { margin-left: 0; }
+  }
 
   @media (max-width: 720px) {
     #panel { top: 8px; left: 8px; right: 8px; padding: 10px; gap: 10px; }
@@ -391,8 +441,12 @@
       color: #e7eaee !important;
     }
     body.light-mode #secondaryControls #modelFilterBtn {
-      background: rgba(255,255,255,0.75) !important;
+      background: rgba(255,255,255,0.55) !important;
       color: var(--text-dim) !important;
+    }
+    body.satellite-mode #secondaryControls #modelFilterBtn {
+      background: rgba(0,0,0,0.72) !important;
+      color: #e7eaee !important;
     }
     #secondaryControls #modelFilterBtn.active-filter {
       color: var(--tlt-roh) !important;
@@ -602,7 +656,7 @@
   body.light-mode .chip,
   body.light-mode #modelFilterBtn,
   body.light-mode #modelDropdown {
-    background: rgba(255,255,255,0.82);
+    background: rgba(255,255,255,0.55);
   }
   body.light-mode .field input[type="text"] {
     background: rgba(255,255,255,0.55);
@@ -622,7 +676,29 @@
   body.satellite-mode .chip,
   body.satellite-mode #modelFilterBtn,
   body.satellite-mode #modelDropdown {
-    background: rgba(18,21,27,0.78);
+    background: rgba(0,0,0,0.72);
+    border-color: rgba(255,255,255,0.14);
+  }
+  body.satellite-mode .leaflet-popup-content-wrapper,
+  body.satellite-mode .leaflet-popup-tip {
+    background: rgba(0,0,0,0.8);
+  }
+  body.satellite-mode #chipNight.empty .dot { background: var(--night-dim) !important; }
+
+  /* Satellite mode: reduced blur */
+  body.satellite-mode #panel::before,
+  body.satellite-mode #mapModeBtn::before,
+  body.satellite-mode #errorBanner::before,
+  body.satellite-mode #etaPanel::before,
+  body.satellite-mode .chip::before,
+  body.satellite-mode #modelFilterBtn::before,
+  body.satellite-mode #modelDropdown::before {
+    -webkit-backdrop-filter: blur(2.5px) saturate(140%);
+    backdrop-filter: blur(2.5px) saturate(140%);
+  }
+  body.satellite-mode .leaflet-popup-content-wrapper {
+    backdrop-filter: blur(2.5px) saturate(150%);
+    -webkit-backdrop-filter: blur(2.5px) saturate(150%);
   }
 
   
@@ -682,6 +758,7 @@
 <div id="map"></div>
 
 <div id="panel">
+  <div class="panel-primary">
   <div class="brand">
     <img id="logoImg" src="logo.png" alt="Tallinna ÜT" onerror="this.onerror=null; this.replaceWith(Object.assign(document.createElement('span'), {className:'brand-text', textContent:'Tallinna ÜT'}));">
   </div>
@@ -702,6 +779,9 @@
     <label class="chip" id="chipBus"><input type="checkbox" checked><span class="dot" style="background:var(--bus)"></span>Bussid</label>
     <label class="chip" id="chipNight"><input type="checkbox" checked><span class="dot" style="background:var(--night)"></span>Ööbussid</label>
   </div>
+  </div>
+
+  <div class="panel-break" aria-hidden="true"></div>
 
   <div id="secondaryControls">
     <div style="position:relative;">
@@ -721,7 +801,7 @@
 
 <div id="errorBanner"></div>
 
-<button id="mapModeBtn" title="Vaheta kaardirežiimi">🛰️ Satelliitvaade</button>
+<button id="mapModeBtn" title="Vaheta kaardirežiimi">🌑 Tume režiim</button>
 
 <script src="vehicle-models.js"></script>
 <script>
@@ -816,10 +896,9 @@
   var map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true })
     .setView([59.4372, 24.7454], 12);
 
-  var darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20,
-    attribution: '&copy; OpenStreetMap &copy; CARTO &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
+  var darkLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap&#39;i kaasautorid &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
   });
 
   var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -828,10 +907,9 @@
     attribution: '&copy; Esri &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
   });
 
-  var lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20,
-    attribution: '&copy; OpenStreetMap &copy; CARTO &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
+  var lightLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap&#39;i kaasautorid &middot; Andmed: Tallinna Transpordiamet (transport.tallinn.ee)'
   });
 
   var markerPane = map.getPane('markerPane');
@@ -1372,6 +1450,18 @@
         stops.push({ id: f.properties.objectid, name: f.properties.nimetus || 'Peatus', lat: lat, lon: lon, progress: proj.progress });
       });
       stops.sort(function(a, b) { return a.progress - b.progress; });
+
+      if (destName && stops.length) {
+        var nearestStop = null, nearestDist = Infinity;
+        for (var ns = 0; ns < stops.length; ns++) {
+          var nsDist = haversineMeters(v.lat, v.lon, stops[ns].lat, stops[ns].lon);
+          if (nsDist < nearestDist) { nearestDist = nsDist; nearestStop = stops[ns]; }
+        }
+        if (nearestStop && (nearestStop.name || '').trim().toLowerCase() === destName) {
+          return [];
+        }
+      }
+
       var remaining = stops.filter(function(s) { return s.progress >= vehProgress - 30; });
 
       var CURRENT_STOP_AT_VEHICLE_METERS = 40;
@@ -1827,9 +1917,10 @@
     var hasHeading = (heading !== null && heading !== 999 && !isNaN(heading));
     var rot = hasHeading ? heading : 0;
     var isSelected = (color === SELECTED_VEHICLE_COLOR);
-    var filterCss = 'drop-shadow(0 1px 3px rgba(0,0,0,0.6)) drop-shadow(0 0 5px rgba(255,255,255,0.18))' +
-      (isSelected ? ' drop-shadow(0 0 7px ' + SELECTED_VEHICLE_COLOR + ') drop-shadow(0 0 2px ' + SELECTED_VEHICLE_COLOR + ')' : '');
-    var html = '<div class="veh-shape" style="transform:rotate(' + rot + 'deg); filter: ' + filterCss + ';">' + shapeSVG(color, hasHeading) + '</div>';
+    var filterAttr = isSelected
+      ? ' style="transform:rotate(' + rot + 'deg); filter: drop-shadow(var(--veh-shadow)) drop-shadow(var(--veh-glow)) drop-shadow(0 0 7px ' + SELECTED_VEHICLE_COLOR + ') drop-shadow(0 0 2px ' + SELECTED_VEHICLE_COLOR + ');"'
+      : ' style="transform:rotate(' + rot + 'deg);"';
+    var html = '<div class="veh-shape"' + filterAttr + '>' + shapeSVG(color, hasHeading) + '</div>';
     return L.divIcon({
       className: 'veh-icon',
       html: html,
@@ -2186,7 +2277,7 @@
   (function setupFloatingPanelPositioning() {
     var panelEl = document.getElementById('panel');
     var etaPanelEl = document.getElementById('etaPanel');
-    var gap = 14;
+    var gap = 22;
 
     function reposition() {
       var rect = panelEl.getBoundingClientRect();
@@ -2209,6 +2300,9 @@
     }
     window.addEventListener('resize', reposition);
     window.addEventListener('load', reposition);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(reposition);
+    }
     setTimeout(reposition, 300);
     setTimeout(reposition, 1000);
     window._repositionFloatingPanels = reposition;
@@ -2416,10 +2510,10 @@
     });
   })();
 
-  // ---------- Kaardirežiimid: satelliit / tume / hele, tsükliliselt ühe nupuga ----------
+  // ---------- Kaardirežiimid: tume / satelliit / hele, tsükliliselt ühe nupuga ----------
   var MAP_MODES = [
-    { key: 'satellite', label: '🛰️ Satelliitvaade', layer: satelliteLayer, darkFilter: false },
     { key: 'dark',      label: '🌑 Tume režiim',      layer: darkLayer,      darkFilter: true  },
+    { key: 'satellite', label: '🛰️ Satelliitvaade', layer: satelliteLayer, darkFilter: false },
     { key: 'light',     label: '☀️ Hele režiim',      layer: lightLayer,     darkFilter: false }
   ];
   var currentModeIndex = 0;
