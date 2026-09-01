@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tallinna ühistranspordi kaart</title>
 <link rel="icon" type="image/png" href="logo.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0c10">
+<link rel="apple-touch-icon" href="logo.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tallinna ÜT">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -83,6 +89,75 @@
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ================= Password gate ================= */
+  #passwordGate {
+    position: fixed; inset: 0; z-index: 100000;
+    background: radial-gradient(circle at 30% 20%, #14181f 0%, var(--bg) 60%);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: fadeUpIn .3s ease;
+  }
+  #passwordGate.hidden { display: none; }
+  .password-card {
+    width: 100%; max-width: 340px;
+    background: var(--glass-tint-strong);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow: var(--glass-shadow);
+    padding: 28px 26px;
+    text-align: center;
+    animation: panelDropIn .5s cubic-bezier(.22,1,.36,1);
+  }
+  .password-card img { width: 48px; height: 48px; object-fit: contain; margin-bottom: 10px; }
+  .password-card h1 {
+    font-size: 16px; font-weight: 700; margin: 0 0 4px;
+    color: var(--text);
+  }
+  .password-card p {
+    font-size: 12px; color: var(--text-dim); margin: 0 0 18px;
+  }
+  #passwordForm { display: flex; flex-direction: column; gap: 10px; }
+  #passwordInput {
+    background: rgba(0,0,0,0.28);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--text);
+    padding: 11px 14px;
+    font-size: 16px;
+    text-align: center;
+    letter-spacing: 0.15em;
+    outline: none;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  #passwordInput:focus { border-color: rgba(0,226,182,0.6); background: rgba(0,0,0,0.4); }
+  #passwordSubmit {
+    background: linear-gradient(135deg, #278082, #1f6567);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .2s ease;
+  }
+  #passwordSubmit:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(39,128,130,0.4); }
+  #passwordSubmit:active { transform: translateY(0) scale(0.97); }
+  #passwordError {
+    display: none;
+    color: #ff7a7a;
+    font-size: 12px;
+    margin-top: 12px;
+  }
+  #passwordError.show { display: block; animation: bannerShake .4s ease; }
+  body.gate-active { overflow: hidden; }
+  body.gate-active #map, body.gate-active #panel, body.gate-active #mapModeBtn,
+  body.gate-active #etaPanel, body.gate-active #errorBanner {
+    filter: blur(6px);
+    pointer-events: none;
+    user-select: none;
   }
 
   /* Top control panel */
@@ -677,7 +752,8 @@
   body.satellite-mode #modelFilterBtn,
   body.satellite-mode #modelDropdown {
     background: rgba(0,0,0,0.72);
-    border-color: rgba(255,255,255,0.14);
+    border-color: var(--glass-border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.12);
   }
   body.satellite-mode .leaflet-popup-content-wrapper,
   body.satellite-mode .leaflet-popup-tip {
@@ -685,7 +761,7 @@
   }
   body.satellite-mode #chipNight.empty .dot { background: var(--night-dim) !important; }
 
-  /* Satellite mode: reduced blur */
+  /* Satellite mode: reduced blur/shading, same uniform border as other modes */
   body.satellite-mode #panel::before,
   body.satellite-mode #mapModeBtn::before,
   body.satellite-mode #errorBanner::before,
@@ -693,12 +769,12 @@
   body.satellite-mode .chip::before,
   body.satellite-mode #modelFilterBtn::before,
   body.satellite-mode #modelDropdown::before {
-    -webkit-backdrop-filter: blur(2.5px) saturate(140%);
-    backdrop-filter: blur(2.5px) saturate(140%);
+    -webkit-backdrop-filter: blur(2.5px) saturate(112%);
+    backdrop-filter: blur(2.5px) saturate(112%);
   }
   body.satellite-mode .leaflet-popup-content-wrapper {
-    backdrop-filter: blur(2.5px) saturate(150%);
-    -webkit-backdrop-filter: blur(2.5px) saturate(150%);
+    backdrop-filter: blur(2.5px) saturate(115%);
+    -webkit-backdrop-filter: blur(2.5px) saturate(115%);
   }
 
   
@@ -745,7 +821,44 @@
   #etaPanel.eta-panel-wide { width: 250px; max-width: calc(100vw - 28px); }
 </style>
 </head>
-<body>
+<body class="gate-active">
+
+<div id="passwordGate">
+  <div class="password-card">
+    <img src="logo.png" alt="Tallinna ÜT" onerror="this.style.display='none';">
+    <h1>Tallinna ühistranspordi kaart</h1>
+    <p>Sisesta parool, et jätkata</p>
+    <form id="passwordForm" autocomplete="off">
+      <input type="password" id="passwordInput" placeholder="Parool" inputmode="numeric" autocomplete="off" autofocus>
+      <button type="submit" id="passwordSubmit">Sisene</button>
+    </form>
+    <div id="passwordError">Vale parool. Proovi uuesti.</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var SITE_PASSWORD = '422';
+  var gate = document.getElementById('passwordGate');
+  var form = document.getElementById('passwordForm');
+  var input = document.getElementById('passwordInput');
+  var error = document.getElementById('passwordError');
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (input.value.trim() === SITE_PASSWORD) {
+      gate.classList.add('hidden');
+      document.body.classList.remove('gate-active');
+    } else {
+      error.classList.remove('show');
+      void error.offsetWidth;
+      error.classList.add('show');
+      input.value = '';
+      input.focus();
+    }
+  });
+})();
+</script>
 
 <svg width="0" height="0" style="position:absolute">
   <filter id="glass-distortion" x="-20%" y="-20%" width="140%" height="140%">
@@ -804,6 +917,13 @@
 <button id="mapModeBtn" title="Vaheta kaardirežiimi">🌑 Tume režiim</button>
 
 <script src="vehicle-models.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('sw.js').catch(function() {});
+    });
+  }
+</script>
 <script>
 (function(){
 
